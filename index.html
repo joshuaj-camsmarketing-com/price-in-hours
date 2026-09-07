@@ -517,7 +517,7 @@
                   <td class="ex-hours" id="hrs-transport">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="health">
-                  <td class="ex-name"><label for="ex-health">Health &amp; medical</label><span class="hint">Premiums paid out of pocket, copays, prescriptions, dental</span></td>
+                  <td class="ex-name"><label for="ex-health">Health &amp; medical</label><span class="hint" id="healthHint">Copays, prescriptions, dental, vision</span></td>
                   <td class="ex-amt"><input type="number" id="ex-health" value="1100" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-health" aria-label="Health frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-health">&mdash;</td>
@@ -857,6 +857,9 @@
       ? "SEP or solo 401(k) contributions and your own health premium — deductions that lower income tax but not self-employment tax."
       : "401(k), HSA, and any health premium taken out of your paycheck. Don’t enter those again below.";
     $("pretaxRowName").textContent = selfEmployed ? "Retirement & health premium" : "Pre-tax deductions";
+    $("healthHint").textContent = selfEmployed
+      ? "Copays, prescriptions, dental, vision. Premiums belong in the deduction field above, not here."
+      : "Copays, prescriptions, dental, vision — plus any premium you pay yourself rather than through payroll.";
     $("withheldHead").textContent = selfEmployed
       ? "Owed but never withheld — calculated, not entered"
       : "Withheld before you see it — calculated, not entered";
