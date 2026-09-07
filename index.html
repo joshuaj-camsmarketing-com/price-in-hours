@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Price in Hours</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+  /* ============================================================
+     Palette: graphite neutrals with a blue bias, one brass accent
+     for surplus. Semantic segment colours are separate from it.
+     ============================================================ */
+  :root {
+    --canvas:    #f6f7f9;
+    --surface:   #ffffff;
+    --sunken:    #f1f3f6;
+    --ink:       #12161b;
+    --ink-2:     #3a434e;
+    --muted:     #78828e;
+    --line:      #e3e7ec;
+    --line-soft: #eef1f4;
+
+    --brass:      #8a6218;
+    --brass-fill: #c69434;
+    --brass-tint: #f7f0df;
+
+    --seg-tax:   #9c6156;
+    --seg-pre:   #b0a893;
+    --seg-fixed: #6f7c8b;
+    --seg-free:  #c69434;
+
+    --alert:     #a63d2b;
+    --alert-tint:#fbeeeb;
+
+    --shadow: 0 1px 1px rgba(18,22,27,.04), 0 6px 20px -8px rgba(18,22,27,.14);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --canvas:    #0e1114;
+      --surface:   #14181d;
+      --sunken:    #191e24;
+      --ink:       #e9edf1;
+      --ink-2:     #b3bcc6;
+      --muted:     #7d8894;
+      --line:      #262d35;
+      --line-soft: #1e242b;
+
+      --brass:      #d9a441;
+      --brass-fill: #d9a441;
+      --brass-tint: #2a2317;
+
+      --seg-tax:   #b8776a;
+      --seg-pre:   #8d8674;
+      --seg-fixed: #7e8b9a;
+      --seg-free:  #d9a441;
+
+      --alert:     #e8836c;
+      --alert-tint:#2c1a16;
+
+      --shadow: 0 1px 1px rgba(0,0,0,.5), 0 8px 24px -10px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --canvas:    #0e1114;
+    --surface:   #14181d;
+    --sunken:    #191e24;
+    --ink:       #e9edf1;
+    --ink-2:     #b3bcc6;
+    --muted:     #7d8894;
+    --line:      #262d35;
+    --line-soft: #1e242b;
+
+    --brass:      #d9a441;
+    --brass-fill: #d9a441;
+    --brass-tint: #2a2317;
+
+    --seg-tax:   #b8776a;
+    --seg-pre:   #8d8674;
+    --seg-fixed: #7e8b9a;
+    --seg-free:  #d9a441;
+
+    --alert:     #e8836c;
+    --alert-tint:#2c1a16;
+
+    --shadow: 0 1px 1px rgba(0,0,0,.5), 0 8px 24px -10px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 34px 20px 64px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet { max-width: 980px; margin: 0 auto; display: grid; gap: 18px; }
+
+  /* ---------- shared atoms ---------- */
+  .micro {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .figure {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+  }
+  .pad { padding: 22px; }
+
+  /* ---------- masthead ---------- */
+  .masthead { padding-bottom: 4px; }
+  .masthead h1 {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-weight: 700; font-size: clamp(26px, 4.4vw, 34px);
+    letter-spacing: -.025em; line-height: 1.05;
+    margin: 8px 0 0; text-wrap: balance;
+  }
+  .masthead p { color: var(--muted); margin: 7px 0 0; max-width: 64ch; font-size: 14px; }
+  .masthead p.example-note { color: var(--ink-2); font-size: 12.5px; margin-top: 12px; padding: 9px 12px; background: var(--sunken); border-left: 2px solid var(--brass-fill); border-radius: 0 5px 5px 0; max-width: 58ch; }
+
+  /* ---------- collapsible setup ---------- */
+  .setup { overflow: hidden; }
+  .setup > summary {
+    list-style: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 14px; padding: 15px 20px;
+  }
+  .setup > summary::-webkit-details-marker { display: none; }
+  .setup > summary:hover { background: var(--sunken); }
+  .setup > summary:focus-visible { outline: 2px solid var(--brass); outline-offset: -2px; }
+  .summary-left { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; min-width: 0; }
+  .summary-meta {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px;
+    color: var(--muted); font-variant-numeric: tabular-nums;
+  }
+  .setup[open] .summary-meta { display: none; }
+  .chev { color: var(--muted); font-size: 11px; transition: transform .18s ease; flex: none; }
+  .setup[open] .chev { transform: rotate(180deg); }
+  .setup-body {
+    border-top: 1px solid var(--line);
+    padding: 22px 20px;
+    display: grid; gap: 22px;
+  }
+  @media (min-width: 900px) { .setup-body { grid-template-columns: 300px 1fr; } }
+  .setup-col { display: grid; gap: 20px; align-content: start; }
+
+  .group-title {
+    display: block; margin: 0 0 12px; padding-bottom: 9px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+
+  /* ---------- fields ---------- */
+  .fields { display: grid; gap: 13px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field { display: grid; gap: 5px; min-width: 0; }
+  .field > label { font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
+  .hint { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+
+  input[type="number"], select {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 14px; font-variant-numeric: tabular-nums;
+    color: var(--ink); background: var(--sunken);
+    border: 1px solid var(--line); border-radius: 7px;
+    padding: 9px 10px; width: 100%;
+  }
+  select { font-family: "IBM Plex Sans", sans-serif; }
+  input[type="number"]:hover, select:hover { border-color: var(--muted); }
+  input[type="number"]:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--brass); outline-offset: 1px;
+    border-color: transparent; background: var(--surface);
+  }
+  input.invalid { border-color: var(--alert); }
+
+  /* ---------- expense ledger ---------- */
+  .scroller { overflow-x: auto; }
+  table.ledger { border-collapse: collapse; width: 100%; min-width: 420px; }
+  table.ledger td { padding: 7px 0; vertical-align: middle; border-bottom: 1px solid var(--line-soft); }
+  table.ledger tr:last-child td { border-bottom: none; }
+  .ex-name { padding-right: 14px !important; }
+  .ex-name label { font-size: 13px; color: var(--ink); display: block; font-weight: 500; }
+  .ex-name .hint { display: block; margin-top: 1px; }
+  .ex-amt { width: 118px; }
+  .ex-cad { width: 74px; padding-left: 7px !important; }
+  .ex-cad select { padding: 9px 4px; text-align: center; }
+  .ex-hours {
+    width: 88px; text-align: right; padding-left: 10px !important;
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: 12.5px; color: var(--muted); white-space: nowrap;
+  }
+  tr.ledger-total td {
+    border-top: 1px solid var(--line); border-bottom: none;
+    padding-top: 11px !important; font-weight: 600;
+  }
+  tr.ledger-total .ex-amt-total {
+    text-align: right; font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums; font-size: 14px;
+  }
+  tr.ledger-total .ex-hours { color: var(--ink-2); font-weight: 600; }
+
+  /* computed (withheld) rows: read-only, never summed into the fixed total */
+  tr.section-head td {
+    border-bottom: 1px solid var(--line-soft);
+    padding: 16px 0 6px !important;
+  }
+  tr.section-head:first-child td { padding-top: 0 !important; }
+  tr.computed .ex-name span.name { font-size: 13px; color: var(--ink); font-weight: 500; display: block; }
+  .ex-fixed {
+    text-align: right; font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums; font-size: 13.5px; color: var(--ink-2);
+  }
+  .cad-static { font-size: 11px; color: var(--muted); padding-left: 7px !important; }
+
+  tr.grand td {
+    border-top: 1px solid var(--ink); border-bottom: none;
+    padding-top: 12px !important; font-weight: 600;
+  }
+  tr.leftover td { border-bottom: none; color: var(--brass); font-weight: 600; }
+  tr.leftover .ex-hours, tr.grand .ex-hours { font-weight: 600; font-size: 12.5px; }
+  tr.leftover .ex-hours { color: var(--brass); }
+  tr.leftover .ex-fixed, tr.grand .ex-fixed { color: inherit; font-size: 14px; }
+
+  /* ---------- the ask ---------- */
+  .ask { display: grid; gap: 14px; }
+  .ask-row { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+  .ask-field { flex: 1 1 220px; display: grid; gap: 6px; }
+  .ask-field label { font-size: 13px; color: var(--ink-2); font-weight: 500; }
+  .ask-field input {
+    font-size: 26px; font-weight: 500; padding: 12px 14px;
+    background: var(--surface); border-radius: 8px;
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip {
+    font-family: "IBM Plex Sans", sans-serif; font-size: 12.5px; color: var(--ink-2);
+    background: var(--sunken); border: 1px solid var(--line); border-radius: 999px;
+    padding: 5px 12px; cursor: pointer; white-space: nowrap;
+  }
+  .chip:hover { border-color: var(--brass); color: var(--ink); background: var(--brass-tint); }
+  .chip .amt { font-family: "IBM Plex Mono", monospace; color: var(--muted); margin-left: 6px; font-size: 11.5px; }
+
+  /* ---------- verdict ---------- */
+  .verdict { border-top: 3px solid var(--brass-fill); }
+  .verdict-grid { display: grid; gap: 24px; }
+  @media (min-width: 760px) { .verdict-grid { grid-template-columns: 1.35fr 1fr; align-items: center; } }
+  .verdict-lead { margin: 0 0 6px; font-size: 14px; color: var(--ink-2); }
+  .verdict-lead b { color: var(--ink); font-weight: 600; }
+  .hero {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700; font-size: clamp(40px, 8.5vw, 68px);
+    line-height: 1; letter-spacing: -.035em;
+    color: var(--brass); margin: 0;
+  }
+  .hero .unit { font-size: .34em; font-weight: 600; letter-spacing: -.01em; color: var(--ink-2); margin-left: .28em; }
+  .hero.shortfall { font-size: clamp(22px, 4vw, 30px); color: var(--alert); letter-spacing: -.02em; }
+  .verdict-sub { margin: 10px 0 0; font-size: 13.5px; color: var(--muted); max-width: 46ch; }
+  .verdict-sub .figure { color: var(--ink-2); }
+
+  .aside-stats { display: grid; gap: 14px; }
+  @media (min-width: 760px) {
+    .aside-stats { border-left: 1px solid var(--line); padding-left: 24px; }
+  }
+  .stat-row { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; }
+  .stat-row dt { font-size: 12.5px; color: var(--muted); }
+  .stat-row dd {
+    margin: 0; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: 15px; font-weight: 600; color: var(--ink); white-space: nowrap;
+  }
+
+  .notice {
+    margin-top: 16px; padding: 11px 13px; border-radius: 8px;
+    background: var(--alert-tint); color: var(--alert);
+    font-size: 12.5px; line-height: 1.45;
+  }
+  .notice[hidden] { display: none !important; }
+
+  /* ---------- year split ---------- */
+  .year-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+  .bar {
+    display: flex; height: 30px; border-radius: 6px; overflow: hidden;
+    background: var(--sunken); border: 1px solid var(--line);
+  }
+  .seg { height: 100%; transition: width .3s ease; }
+  @media (prefers-reduced-motion: reduce) { .seg { transition: none; } }
+  .seg-tax   { background: var(--seg-tax); }
+  .seg-pre   { background: var(--seg-pre); }
+  .seg-fixed { background: var(--seg-fixed); }
+  .seg-free  { background: var(--seg-free); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 22px; margin-top: 14px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2); }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+  .legend-item .figure { color: var(--muted); font-size: 12px; }
+
+  .crossover {
+    margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft);
+    font-size: 13.5px; color: var(--ink-2);
+  }
+  .crossover b { color: var(--ink); font-weight: 600; }
+
+  .surplus-strip {
+    margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--line-soft);
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 18px;
+  }
+  .surplus-strip .k { display: block; }
+  .surplus-strip .v {
+    display: block; margin-top: 4px;
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: 18px; font-weight: 600; color: var(--ink);
+  }
+
+  [hidden] { display: none !important; }
+
+  /* checkbox row */
+  .check-row { display: flex; gap: 9px; align-items: flex-start; }
+  .check-row input[type="checkbox"] {
+    width: 15px; height: 15px; margin: 2px 0 0; flex: none; accent-color: var(--brass-fill);
+  }
+  .check-row label { font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
+  .check-row .hint { display: block; margin-top: 2px; font-weight: 400; }
+
+  /* 1099 tax reserve callout */
+  .reserve {
+    margin-top: 18px; padding: 16px 18px;
+    border: 1px solid var(--brass-fill); border-radius: 9px;
+    background: var(--brass-tint);
+  }
+  .reserve-figures {
+    margin: 8px 0 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  }
+  .reserve-big {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-size: 30px; font-weight: 700; letter-spacing: -.03em;
+    color: var(--brass); font-variant-numeric: tabular-nums;
+  }
+  .reserve-alt { font-size: 13px; color: var(--ink-2); }
+  .reserve-alt .figure { color: var(--ink); font-weight: 600; }
+  .reserve-note { margin: 9px 0 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
+
+  footer { color: var(--muted); font-size: 12px; line-height: 1.55; max-width: 76ch; }
+  footer p { margin: 0 0 7px; }
+  footer b { color: var(--ink-2); font-weight: 600; }
+</style>
+<style>
+  html { color-scheme: light dark; }
+  body { margin: 0; }
+  img { max-width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="masthead">
+    <span class="micro">Disposable-income time converter &middot; Tax year 2026</span>
+    <h1>Price in Hours</h1>
+    <p>A toy is not paid for out of your wage. It is paid for out of what survives tax and the bills &mdash; a much smaller bucket that fills much more slowly. This converts any discretionary purchase into the hours of surplus work it actually costs.</p>
+    <p class="example-note">Every figure below is editable &mdash; replace them with your own. Everything you enter stays in your browser and is never sent anywhere.</p>
+  </header>
+
+  <!-- ============ setup (collapsible) ============ -->
+  <details class="setup panel" id="setup" open>
+    <summary>
+      <span class="summary-left">
+        <span class="micro">Setup</span>
+        <span class="summary-meta" id="summaryMeta">&mdash;</span>
+      </span>
+      <span class="chev" aria-hidden="true">&#9660;</span>
+    </summary>
+
+    <div class="setup-body" id="controls">
+      <div class="setup-col">
+        <section>
+          <span class="micro group-title">Earnings &amp; tax</span>
+          <div class="fields">
+            <div class="field">
+              <label for="employmentType">How you&rsquo;re paid</label>
+              <select id="employmentType">
+                <option value="w2" selected>W-2 employee &mdash; tax withheld</option>
+                <option value="1099">1099 contractor &mdash; nothing withheld</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="grossIncome" id="grossLabel">Annual gross pay ($)</label>
+              <input type="number" id="grossIncome" value="80000" min="0" max="100000000" step="1000" inputmode="decimal">
+            </div>
+            <div class="field" id="bizField" hidden>
+              <label for="bizExpenses">Deductible business expenses ($/yr)</label>
+              <input type="number" id="bizExpenses" value="6000" min="0" max="100000000" step="500" inputmode="decimal">
+              <span class="hint">Mileage, equipment, software, home office, liability insurance, the business half of your phone.</span>
+            </div>
+            <div class="pair">
+              <div class="field">
+                <label for="filingStatus">Filing status</label>
+                <select id="filingStatus">
+                  <option value="single">Single</option>
+                  <option value="married" selected>Married, joint</option>
+                  <option value="hoh">Head of household</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="stateRate">State tax (%)</label>
+                <input type="number" id="stateRate" value="0" min="0" max="15" step="0.1" inputmode="decimal">
+              </div>
+            </div>
+            <div class="field">
+              <label for="pretax" id="pretaxLabel">Pre-tax payroll deductions ($/yr)</label>
+              <input type="number" id="pretax" value="0" min="0" max="100000000" step="500" inputmode="decimal">
+              <span class="hint" id="pretaxHint">401(k), HSA, and any health premium taken out of your paycheck. Don&rsquo;t enter those again below.</span>
+            </div>
+            <div class="check-row" id="qbiField" hidden>
+              <input type="checkbox" id="qbiEnabled" checked>
+              <label for="qbiEnabled">Claim the 20% qualified business income deduction<span class="hint">Standard for most contractors. Uncheck if you&rsquo;re a specified service business over the income threshold.</span></label>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <span class="micro group-title">Time the job costs</span>
+          <div class="fields">
+            <div class="pair">
+              <div class="field">
+                <label for="weeklyHours">Paid hours / week</label>
+                <input type="number" id="weeklyHours" value="55" min="0" max="168" step="1" inputmode="decimal">
+              </div>
+              <div class="field">
+                <label for="weeksPerYear">Weeks / year</label>
+                <input type="number" id="weeksPerYear" value="50" min="1" max="52" step="1" inputmode="decimal">
+              </div>
+            </div>
+            <div class="field">
+              <label for="unpaidHours">Unpaid hours / week</label>
+              <input type="number" id="unpaidHours" value="4" min="0" max="100" step="0.5" inputmode="decimal">
+              <span class="hint">Commute, prep, on-call, decompressing &mdash; time the job takes but doesn&rsquo;t pay for.</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="setup-col">
+        <div>
+          <span class="micro group-title">Fixed obligations &mdash; what the money is already promised to</span>
+          <div class="scroller">
+            <table class="ledger">
+              <tbody>
+                <tr class="section-head">
+                  <td colspan="4"><span class="micro" id="withheldHead">Withheld before you see it &mdash; calculated, not entered</span></td>
+                </tr>
+                <tr class="computed" id="bizRow" hidden>
+                  <td class="ex-name"><span class="name">Business expenses</span><span class="hint">Off the top, before any tax is figured</span></td>
+                  <td class="ex-fixed" id="rowBizLine">&mdash;</td>
+                  <td class="cad-static">/mo</td>
+                  <td class="ex-hours" id="hrs-biz">&mdash;</td>
+                </tr>
+                <tr class="computed">
+                  <td class="ex-name"><span class="name">Federal income tax</span><span class="hint" id="fedHint">2026 brackets after the standard deduction</span></td>
+                  <td class="ex-fixed" id="rowFedTax">&mdash;</td>
+                  <td class="cad-static">/mo</td>
+                  <td class="ex-hours" id="hrs-fedtax">&mdash;</td>
+                </tr>
+                <tr class="computed">
+                  <td class="ex-name"><span class="name" id="ficaName">Social Security &amp; Medicare</span><span class="hint" id="ficaHint">6.2% to the wage base, plus 1.45% on everything</span></td>
+                  <td class="ex-fixed" id="rowFicaTax">&mdash;</td>
+                  <td class="cad-static">/mo</td>
+                  <td class="ex-hours" id="hrs-fica">&mdash;</td>
+                </tr>
+                <tr class="computed">
+                  <td class="ex-name"><span class="name">State income tax</span><span class="hint">The flat rate entered on the left</span></td>
+                  <td class="ex-fixed" id="rowStateTax">&mdash;</td>
+                  <td class="cad-static">/mo</td>
+                  <td class="ex-hours" id="hrs-statetax">&mdash;</td>
+                </tr>
+                <tr class="computed">
+                  <td class="ex-name"><span class="name" id="pretaxRowName">Pre-tax deductions</span><span class="hint">Still yours, but not money you can spend</span></td>
+                  <td class="ex-fixed" id="rowPretaxLine">&mdash;</td>
+                  <td class="cad-static">/mo</td>
+                  <td class="ex-hours" id="hrs-pretax">&mdash;</td>
+                </tr>
+
+                <tr class="section-head">
+                  <td colspan="4"><span class="micro">Paid out of take-home &mdash; your figures</span></td>
+                </tr>
+                <tr class="ex-row" data-key="housing">
+                  <td class="ex-name"><label for="ex-housing">Housing</label><span class="hint">Rent or mortgage, property tax, HOA, insurance</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-housing" value="2200" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-housing" aria-label="Housing frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-housing">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="utilities">
+                  <td class="ex-name"><label for="ex-utilities">Utilities &amp; connectivity</label><span class="hint">Power, gas, water, trash, internet, mobile</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-utilities" value="310" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-utilities" aria-label="Utilities frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-utilities">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="food">
+                  <td class="ex-name"><label for="ex-food">Groceries &amp; household</label><span class="hint">Food, cleaning, toiletries</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-food" value="600" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-food" aria-label="Groceries frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-food">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="transport">
+                  <td class="ex-name"><label for="ex-transport">Transportation</label><span class="hint">Car payment, fuel, auto insurance, upkeep, transit</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-transport" value="200" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-transport" aria-label="Transportation frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-transport">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="health">
+                  <td class="ex-name"><label for="ex-health">Health &amp; medical</label><span class="hint">Premiums paid out of pocket, copays, prescriptions, dental</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-health" value="1100" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-health" aria-label="Health frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-health">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="debt">
+                  <td class="ex-name"><label for="ex-debt">Debt payments</label><span class="hint">Student loans, card minimums, personal loans</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-debt" value="0" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-debt" aria-label="Debt frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-debt">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="care">
+                  <td class="ex-name"><label for="ex-care">Care &amp; dependents</label><span class="hint">Childcare, tuition, pets, support payments</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-care" value="20" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-care" aria-label="Care frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-care">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="subs">
+                  <td class="ex-name"><label for="ex-subs">Subscriptions &amp; memberships</label><span class="hint">Streaming, software, gym, professional dues</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-subs" value="78" min="0" max="1000000" step="5" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-subs" aria-label="Subscriptions frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-subs">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="savings">
+                  <td class="ex-name"><label for="ex-savings">Savings &amp; sinking funds</label><span class="hint">Emergency fund, Roth, car replacement &mdash; money already promised</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-savings" value="400" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-savings" aria-label="Savings frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-savings">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="other">
+                  <td class="ex-name"><label for="ex-other">Other fixed costs</label><span class="hint">Anything recurring you can&rsquo;t skip</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-other" value="0" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-other" aria-label="Other frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-other">&mdash;</td>
+                </tr>
+                <tr class="ledger-total">
+                  <td class="ex-name">Subtotal, fixed obligations</td>
+                  <td class="ex-amt-total figure" id="fixedTotal">&mdash;</td>
+                  <td class="ex-cad micro" style="padding-left:7px;">/mo</td>
+                  <td class="ex-hours" id="fixedTotalHours">&mdash;</td>
+                </tr>
+                <tr class="grand">
+                  <td class="ex-name">Everything already spoken for</td>
+                  <td class="ex-fixed" id="committedTotal">&mdash;</td>
+                  <td class="cad-static">/mo</td>
+                  <td class="ex-hours" id="hrs-committed">&mdash;</td>
+                </tr>
+                <tr class="leftover">
+                  <td class="ex-name">Left for you</td>
+                  <td class="ex-fixed" id="leftoverTotal">&mdash;</td>
+                  <td class="cad-static">/mo</td>
+                  <td class="ex-hours" id="hrs-leftover">&mdash;</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </details>
+
+  <!-- ============ the ask ============ -->
+  <section class="panel pad ask">
+    <div class="ask-row">
+      <div class="ask-field">
+        <label for="itemCost">What do you want to buy? ($)</label>
+        <input type="number" id="itemCost" value="12" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0.00">
+      </div>
+    </div>
+    <div class="chips" id="presets">
+      <button type="button" class="chip" data-cost="69.99">Video game <span class="amt">$70</span></button>
+      <button type="button" class="chip" data-cost="185">Concert ticket <span class="amt">$185</span></button>
+      <button type="button" class="chip" data-cost="249">Earbuds <span class="amt">$249</span></button>
+      <button type="button" class="chip" data-cost="499">Game console <span class="amt">$499</span></button>
+      <button type="button" class="chip" data-cost="640">Weekend away <span class="amt">$640</span></button>
+      <button type="button" class="chip" data-cost="1100">New phone <span class="amt">$1,100</span></button>
+      <button type="button" class="chip" data-cost="3200">Vacation <span class="amt">$3,200</span></button>
+    </div>
+  </section>
+
+  <!-- ============ verdict ============ -->
+  <section class="panel pad verdict">
+    <div class="verdict-grid">
+      <div>
+        <p class="verdict-lead">Buying <b id="costEcho">$1,100.00</b> costs you</p>
+        <p class="hero" id="hero" aria-live="polite">&mdash;</p>
+        <p class="verdict-sub" id="heroSub">&mdash;</p>
+      </div>
+      <dl class="aside-stats">
+        <div class="stat-row"><dt>In working weeks of surplus</dt><dd id="statWeeks">&mdash;</dd></div>
+        <div class="stat-row"><dt>Surplus earned per hour</dt><dd id="statDispHourly">&mdash;</dd></div>
+        <div class="stat-row"><dt>If the bills were already paid</dt><dd id="statRawHours">&mdash;</dd></div>
+        <div class="stat-row"><dt>Take-home per hour</dt><dd id="statRawHourly">&mdash;</dd></div>
+      </dl>
+    </div>
+    <p class="notice" id="notice" hidden></p>
+  </section>
+
+  <!-- ============ year split ============ -->
+  <section class="panel pad">
+    <div class="year-head">
+      <span class="micro">Where a year of gross pay goes</span>
+      <span class="micro figure" id="grossEcho">&mdash;</span>
+    </div>
+
+    <div class="bar" id="bar" role="img" aria-label="Breakdown of gross pay">
+      <div class="seg seg-tax"   id="segTax"></div>
+      <div class="seg seg-pre"   id="segPre"></div>
+      <div class="seg seg-fixed" id="segFixed"></div>
+      <div class="seg seg-free"  id="segFree"></div>
+    </div>
+
+    <div class="legend">
+      <span class="legend-item"><span class="swatch" style="background:var(--seg-tax)"></span>Tax &amp; payroll <span class="figure" id="legTax">&mdash;</span></span>
+      <span class="legend-item"><span class="swatch" style="background:var(--seg-pre)"></span><span id="legPreLabel">Pre-tax deductions</span> <span class="figure" id="legPre">&mdash;</span></span>
+      <span class="legend-item"><span class="swatch" style="background:var(--seg-fixed)"></span>Fixed obligations <span class="figure" id="legFixed">&mdash;</span></span>
+      <span class="legend-item"><span class="swatch" style="background:var(--seg-free)"></span>Yours to spend <span class="figure" id="legFree">&mdash;</span></span>
+    </div>
+
+    <p class="crossover" id="crossover">&mdash;</p>
+
+    <div class="reserve" id="reserve" hidden>
+      <span class="micro">Nothing is withheld &mdash; set this aside yourself</span>
+      <p class="reserve-figures">
+        <span class="reserve-big figure" id="reserveMonth">&mdash;</span>
+        <span class="reserve-alt">per month, or <span class="figure" id="reserveQuarter">&mdash;</span> every quarter</span>
+      </p>
+      <p class="reserve-note" id="reserveNote">&mdash;</p>
+    </div>
+
+    <div class="surplus-strip">
+      <div><span class="micro k">Surplus / month</span><span class="v" id="dispMonth">&mdash;</span></div>
+      <div><span class="micro k">Surplus / week</span><span class="v" id="dispWeek">&mdash;</span></div>
+      <div><span class="micro k">Surplus / hour worked</span><span class="v" id="dispHour">&mdash;</span></div>
+      <div><span class="micro k">Hours to tax / yr</span><span class="v" id="taxHoursYear">&mdash;</span></div>
+      <div><span class="micro k">Hours committed / yr</span><span class="v" id="statHours">&mdash;</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <p><b>How the estimate is built.</b> Federal tax uses the 2026 IRS brackets and standard deduction for your filing status; pre-tax payroll deductions reduce federal and state taxable income but not payroll tax. FICA is 6.2% Social Security on the first $184,500 of wages plus 1.45% Medicare on all wages, with the extra 0.9% surtax above the threshold for your status. State tax is applied as the flat rate you enter.</p>
+    <p><b>If you&rsquo;re a 1099 contractor.</b> Self-employment tax is 15.3% on 92.35% of net profit &mdash; both halves of Social Security and Medicare, because there is no employer paying the other one &mdash; with the Social Security half capped at $184,500 and the extra 0.9% Medicare surtax above the threshold for your status. Half of that tax is deducted before income tax, and the 20% qualified business income deduction is applied when claimed. The result is money you owe but nobody collects for you, so the tool treats it as already spent from the day you invoice it.</p>
+    <p>Two limits worth knowing: the QBI deduction here is modelled below the phase-in threshold, where it is a clean 20%, and is warned about above it, where W-2 wage limits and specified-service rules can cut or eliminate it; and state estimated tax is folded into the same reserve figure at the flat rate you enter. A CPA will beat this on both.</p>
+    <p><b>Reading the hours column.</b> Every line in the ledger is priced against your gross hourly rate, so the hours are additive: tax, pre-tax deductions, fixed obligations and what&rsquo;s left add back up to the hours you actually work. Tax rows are calculated from your earnings, never entered &mdash; they are already out of your pay before the fixed obligations are counted, so they are shown separately rather than added to that subtotal.</p>
+    <p><b>What &ldquo;surplus&rdquo; means here.</b> Take-home pay minus every fixed obligation above, including the savings you treat as non-negotiable, spread across every hour the job costs you &mdash; paid or not. That is why the hourly surplus rate is so much lower than your wage, and why a small purchase can cost a startling number of hours.</p>
+    <p>Itemized deductions, credits, other household income, and local tax are ignored, so treat the take-home figure as a planning estimate rather than a tax return. Everything you enter stays in this browser.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* --- 2026 federal parameters (IRS Rev. Proc. 2025-32) ----------------- */
+  var FILING = {
+    single: {
+      deduction: 16100,
+      brackets: [[12400,.10],[50400,.12],[105700,.22],[201775,.24],[256225,.32],[640600,.35],[Infinity,.37]],
+      medicareSurtaxFrom: 200000
+    },
+    married: {
+      deduction: 32200,
+      brackets: [[24800,.10],[100800,.12],[211400,.22],[403550,.24],[512450,.32],[768700,.35],[Infinity,.37]],
+      medicareSurtaxFrom: 250000
+    },
+    hoh: {
+      deduction: 24150,
+      brackets: [[17700,.10],[67450,.12],[105700,.22],[201750,.24],[256200,.32],[640600,.35],[Infinity,.37]],
+      medicareSurtaxFrom: 200000
+    }
+  };
+  var SS_WAGE_BASE = 184500, SS_RATE = .062, MEDICARE_RATE = .0145, MEDICARE_SURTAX = .009;
+  var SE_NET_FACTOR = .9235;   // net earnings subject to SE tax
+  var SE_SS_RATE = .124;       // both halves
+  var SE_MED_RATE = .029;
+  var QBI_RATE = .20;
+  var TAX_YEAR = 2026;
+  var ESTIMATED_DUE = "April 15, June 15, September 15, and January 15";
+  var STORE_KEY = "price-in-hours/v3";
+
+  var EXPENSES = ["housing","utilities","food","transport","health","debt","care","subs","savings","other"];
+  var PROFILE_FIELDS = ["employmentType","grossIncome","bizExpenses","filingStatus","stateRate","pretax",
+                        "qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost"];
+
+  var usd0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+  var usd2 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+  var num0 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+  var num1 = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+  var pct1 = new Intl.NumberFormat("en-US", { style: "percent", maximumFractionDigits: 1 });
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* --- input handling --------------------------------------------------- */
+
+  // Clamp to the min/max declared in the markup so a pasted negative can
+  // never invert the arithmetic downstream.
+  function readNumber(el) {
+    var raw = parseFloat(el.value);
+    var min = el.min === "" ? -Infinity : parseFloat(el.min);
+    var max = el.max === "" ? Infinity : parseFloat(el.max);
+    if (!isFinite(raw)) return { value: min > 0 ? min : 0, ok: el.value.trim() === "" };
+    return { value: Math.min(max, Math.max(min, raw)), ok: raw >= min && raw <= max };
+  }
+
+  function val(id) { return readNumber($(id)).value; }
+
+  /* --- tax -------------------------------------------------------------- */
+  function federalTax(taxable, brackets) {
+    var owed = 0, floor = 0;
+    for (var i = 0; i < brackets.length && taxable > floor; i++) {
+      owed += (Math.min(taxable, brackets[i][0]) - floor) * brackets[i][1];
+      floor = brackets[i][0];
+    }
+    return owed;
+  }
+
+  function marginalRate(taxable, brackets) {
+    for (var i = 0; i < brackets.length; i++) {
+      if (taxable <= brackets[i][0]) return brackets[i][1];
+    }
+    return brackets[brackets.length - 1][1];
+  }
+
+  /* --- formatting ------------------------------------------------------- */
+
+  // Hours -> a headline number plus its unit, switching unit as the figure
+  // grows so the hero line never reads as an unreadable wall of digits.
+  function heroFigure(hours, workdayHours, workweekHours) {
+    if (hours < 1) {
+      var mins = hours * 60;
+      return { value: mins < 10 ? num1.format(mins) : num0.format(mins), unit: mins === 1 ? "minute" : "minutes" };
+    }
+    if (hours < 400) {
+      return { value: hours < 10 ? num1.format(hours) : num0.format(hours), unit: hours === 1 ? "hour" : "hours" };
+    }
+    if (workweekHours > 0 && hours / workweekHours < 60) {
+      var weeks = hours / workweekHours;
+      return { value: num1.format(weeks), unit: "working weeks" };
+    }
+    var years = workweekHours > 0 ? hours / (workweekHours * Math.max(1, val("weeksPerYear"))) : 0;
+    return { value: num1.format(years), unit: "working years" };
+  }
+
+  // Secondary phrasing: the same span expressed in the user's own workdays.
+  function inWorkdays(hours, workdayHours) {
+    if (!(workdayHours > 0)) return "";
+    var days = hours / workdayHours;
+    if (days < 1) return "";
+    return num1.format(days) + " of your " + num1.format(workdayHours) + "-hour workdays";
+  }
+
+  function crossoverDate(fraction) {
+    if (!(fraction >= 0) || fraction >= 1) return null;
+    var start = Date.UTC(TAX_YEAR, 0, 1);
+    var d = new Date(start + Math.round(fraction * 365) * 86400000);
+    return d.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" });
+  }
+
+  /* --- the calculation -------------------------------------------------- */
+  function recalculate() {
+    var gross     = val("grossIncome");
+    var stateRate = val("stateRate") / 100;
+    var pretax    = Math.min(gross, val("pretax"));
+    var paidHours = val("weeklyHours");
+    var weeks     = val("weeksPerYear");
+    var unpaid    = val("unpaidHours");
+    var cost      = val("itemCost");
+    var profile   = FILING[$("filingStatus").value] || FILING.single;
+    var selfEmployed = $("employmentType").value === "1099";
+    var bizExpenses  = selfEmployed ? Math.min(gross, val("bizExpenses")) : 0;
+
+    /* --- payroll / self-employment tax --- */
+    var earned = gross - bizExpenses;   // wages, or net business profit
+    var fica, halfSE;
+
+    if (selfEmployed) {
+      // A contractor pays both halves on 92.35% of net profit, and deducts
+      // half of the 15.3% portion (not the 0.9% surtax) from income tax.
+      var seBase = Math.max(0, earned) * SE_NET_FACTOR;
+      var seSocial = Math.min(seBase, SS_WAGE_BASE) * SE_SS_RATE;
+      var seMedicare = seBase * SE_MED_RATE;
+      var seSurtax = Math.max(0, seBase - profile.medicareSurtaxFrom) * MEDICARE_SURTAX;
+      fica = seSocial + seMedicare + seSurtax;
+      halfSE = (seSocial + seMedicare) / 2;
+    } else {
+      fica = Math.min(gross, SS_WAGE_BASE) * SS_RATE
+           + gross * MEDICARE_RATE
+           + Math.max(0, gross - profile.medicareSurtaxFrom) * MEDICARE_SURTAX;
+      halfSE = 0;
+    }
+
+    /* --- federal income tax --- */
+    var afterAdjustments = Math.max(0, earned - halfSE - pretax);
+    var preQbiTaxable = Math.max(0, afterAdjustments - profile.deduction);
+
+    // Section 199A: 20% of business income, capped at 20% of taxable income.
+    // Modelled below the phase-in threshold only; a warning fires above it.
+    var qbiClaimed = selfEmployed && $("qbiEnabled").checked;
+    var qbiDeduction = qbiClaimed
+      ? QBI_RATE * Math.min(afterAdjustments, preQbiTaxable)
+      : 0;
+
+    var taxable = Math.max(0, preQbiTaxable - qbiDeduction);
+    var fedTax  = federalTax(taxable, profile.brackets);
+
+    var stateTax = Math.max(0, earned - pretax) * stateRate;
+    var totalTax = fedTax + fica + stateTax;
+    var net      = gross - bizExpenses - pretax - totalTax;
+
+    /* time */
+    var workweekHours  = paidHours + unpaid;
+    var committedHours = workweekHours * weeks;
+    var workdayHours   = workweekHours / 5;
+    var rawHourly      = committedHours > 0 ? net / committedHours : 0;
+
+    // Every ledger line is priced against the GROSS rate, not take-home, so
+    // the hours columns are additive: tax + deductions + fixed + surplus
+    // comes back to the hours actually worked. Pricing tax at the take-home
+    // rate would be circular — tax is what stands between the two.
+    var grossHourly = committedHours > 0 ? gross / committedHours : 0;
+    var hoursFor = function (annualAmount) {
+      return grossHourly > 0 ? num0.format((annualAmount / 12) / grossHourly) + " h/mo" : "—";
+    };
+
+    /* --- mode-dependent copy --- */
+    $("bizField").hidden = !selfEmployed;
+    $("qbiField").hidden = !selfEmployed;
+    $("bizRow").hidden   = !selfEmployed;
+    $("reserve").hidden  = !selfEmployed;
+
+    $("grossLabel").textContent = selfEmployed
+      ? "Annual revenue, before expenses ($)"
+      : "Annual gross pay ($)";
+    $("pretaxLabel").textContent = selfEmployed
+      ? "Retirement & self-employed health ($/yr)"
+      : "Pre-tax payroll deductions ($/yr)";
+    $("pretaxHint").textContent = selfEmployed
+      ? "SEP or solo 401(k) contributions and your own health premium — deductions that lower income tax but not self-employment tax."
+      : "401(k), HSA, and any health premium taken out of your paycheck. Don’t enter those again below.";
+    $("pretaxRowName").textContent = selfEmployed ? "Retirement & health premium" : "Pre-tax deductions";
+    $("withheldHead").textContent = selfEmployed
+      ? "Owed but never withheld — calculated, not entered"
+      : "Withheld before you see it — calculated, not entered";
+    $("ficaName").textContent = selfEmployed ? "Self-employment tax" : "Social Security & Medicare";
+    $("ficaHint").textContent = selfEmployed
+      ? "15.3% on 92.35% of net profit — both halves, since there is no employer"
+      : "6.2% to the wage base, plus 1.45% on everything";
+    $("fedHint").textContent = selfEmployed
+      ? (qbiClaimed ? "2026 brackets, after the standard and 20% QBI deductions" : "2026 brackets after the standard deduction")
+      : "2026 brackets after the standard deduction";
+
+    /* withheld before it reaches you — displayed, never summed into fixed */
+    $("rowBizLine").textContent = usd0.format(bizExpenses / 12);
+    $("hrs-biz").textContent    = hoursFor(bizExpenses);
+    $("rowFedTax").textContent    = usd0.format(fedTax / 12);
+    $("hrs-fedtax").textContent   = hoursFor(fedTax);
+    $("rowFicaTax").textContent   = usd0.format(fica / 12);
+    $("hrs-fica").textContent     = hoursFor(fica);
+    $("rowStateTax").textContent  = usd0.format(stateTax / 12);
+    $("hrs-statetax").textContent = hoursFor(stateTax);
+    $("rowPretaxLine").textContent = usd0.format(pretax / 12);
+    $("hrs-pretax").textContent   = hoursFor(pretax);
+
+    /* fixed obligations */
+    var fixedAnnual = 0;
+    EXPENSES.forEach(function (key) {
+      var annual = val("ex-" + key) * parseFloat($("cad-" + key).value);
+      fixedAnnual += annual;
+      $("hrs-" + key).textContent = hoursFor(annual);
+    });
+    $("fixedTotal").textContent = usd0.format(fixedAnnual / 12);
+    $("fixedTotalHours").textContent = hoursFor(fixedAnnual);
+
+    var disposable = net - fixedAnnual;
+    var dispHourly = committedHours > 0 ? disposable / committedHours : 0;
+
+    var spokenFor = totalTax + pretax + bizExpenses + fixedAnnual;
+    $("committedTotal").textContent = usd0.format(spokenFor / 12);
+    $("hrs-committed").textContent  = hoursFor(spokenFor);
+    $("leftoverTotal").textContent  = usd0.format(disposable / 12);
+    $("hrs-leftover").textContent   = hoursFor(disposable);
+
+    /* collapsed-state summary */
+    $("summaryMeta").textContent = [
+      usd0.format(gross) + (selfEmployed ? " 1099" : " W-2"),
+      num0.format(workweekHours) + " h/wk",
+      usd0.format(fixedAnnual / 12) + "/mo fixed",
+      (dispHourly > 0 ? usd2.format(dispHourly) + "/h surplus" : "no surplus")
+    ].join("  ·  ");
+
+    /* year split, as shares of gross */
+    var share = function (part) { return gross > 0 ? Math.max(0, part) / gross : 0; };
+    var offTop = pretax + bizExpenses;
+    var sTax   = share(totalTax);
+    var sPre   = share(offTop);
+    var sFixed = share(Math.min(fixedAnnual, Math.max(0, net)));
+    var sFree  = share(Math.max(0, disposable));
+
+    $("segTax").style.width   = (sTax * 100)   + "%";
+    $("segPre").style.width   = (sPre * 100)   + "%";
+    $("segFixed").style.width = (sFixed * 100) + "%";
+    $("segFree").style.width  = (sFree * 100)  + "%";
+
+    $("grossEcho").textContent = usd0.format(gross) + (selfEmployed ? " revenue · " : " gross · ")
+                               + usd0.format(net) + " spendable";
+    $("legPreLabel").textContent = selfEmployed ? "Business costs & deductions" : "Pre-tax deductions";
+    $("legTax").textContent    = usd0.format(totalTax) + " · " + pct1.format(sTax);
+    $("legPre").textContent    = usd0.format(offTop) + " · " + pct1.format(sPre);
+    $("legFixed").textContent  = usd0.format(fixedAnnual) + " · " + pct1.format(share(fixedAnnual));
+    $("legFree").textContent   = usd0.format(Math.max(0, disposable)) + " · " + pct1.format(sFree);
+
+    $("bar").setAttribute("aria-label",
+      "Gross pay split: tax " + pct1.format(sTax) +
+      ", pre-tax deductions " + pct1.format(sPre) +
+      ", fixed obligations " + pct1.format(share(fixedAnnual)) +
+      ", disposable " + pct1.format(sFree));
+
+    /* the money a contractor has to hold back, since nobody else will */
+    if (selfEmployed) {
+      $("reserveMonth").textContent   = usd0.format(totalTax / 12);
+      $("reserveQuarter").textContent = usd0.format(totalTax / 4);
+      var reserveNote = "That is " + pct1.format(share(totalTax)) + " of every invoice, due in quarterly estimates on "
+        + ESTIMATED_DUE + ". Until it is moved out of your account it will look like surplus, and this tool counts it as already spent.";
+      if (qbiClaimed && afterAdjustments > profile.brackets[3][0]) {
+        reserveNote += " Your income is above the QBI phase-in threshold, where the deduction gets limited by W-2 wages and business type — the figure here is likely optimistic.";
+      }
+      $("reserveNote").textContent = reserveNote;
+    }
+
+    var committedShare = share(totalTax + pretax + bizExpenses + fixedAnnual);
+    var date = crossoverDate(committedShare);
+    $("crossover").innerHTML = date
+      ? "Paid in order, this year&rsquo;s earnings clear the tax bill and every fixed obligation on <b>" + date +
+        "</b>. Only what you earn after that buys anything you actually chose."
+      : "Tax and fixed obligations consume the whole year&rsquo;s pay. There is no point in the year where the money starts being yours.";
+
+    $("dispMonth").textContent = usd0.format(disposable / 12);
+    $("dispWeek").textContent  = usd0.format(disposable / 52);
+    $("dispHour").textContent  = committedHours > 0 ? usd2.format(dispHourly) : "—";
+    $("taxHoursYear").textContent = grossHourly > 0 ? num0.format(totalTax / grossHourly) : "—";
+    $("statHours").textContent = num0.format(committedHours);
+    $("costEcho").textContent  = usd2.format(cost);
+    $("statRawHourly").textContent = rawHourly > 0 ? usd2.format(rawHourly) : "—";
+    $("statDispHourly").textContent = committedHours > 0 ? usd2.format(dispHourly) : "—";
+    $("statRawHours").textContent = rawHourly > 0 ? num1.format(cost / rawHourly) + " h" : "—";
+
+    var hero = $("hero"), notice = $("notice");
+
+    /* --- states where no surplus rate exists --- */
+    if (committedHours <= 0) {
+      hero.className = "hero shortfall";
+      hero.textContent = "No hours logged";
+      $("heroSub").textContent = "Add the hours you work each week to convert money into time.";
+      $("statWeeks").textContent = "—";
+      notice.hidden = true;
+      return;
+    }
+
+    if (disposable <= 0) {
+      var shortfall = -disposable / 12;
+      hero.className = "hero shortfall";
+      hero.textContent = "More than you have";
+      $("heroSub").textContent = "Fixed obligations already run " + usd0.format(shortfall) +
+        " a month past your take-home pay, so there is no surplus to convert. This purchase would come out of borrowing or savings.";
+      $("statWeeks").textContent = "—";
+      notice.hidden = false;
+      notice.textContent = "Monthly shortfall of " + usd0.format(shortfall) +
+        ". Trim a fixed line, or treat the figures under “if the bills were already paid” as the marginal cost of overtime instead.";
+      return;
+    }
+
+    notice.hidden = true;
+    hero.className = "hero";
+
+    var surplusHours = cost / dispHourly;
+    var fig = heroFigure(surplusHours, workdayHours, workweekHours);
+    hero.innerHTML = fig.value + '<span class="unit">' + fig.unit + "</span>";
+    hero.setAttribute("aria-label", fig.value + " " + fig.unit + " of surplus work");
+
+    var days = inWorkdays(surplusHours, workdayHours);
+    $("heroSub").innerHTML = "of work once tax and the bills are covered" +
+      (days ? " — " + '<span class="figure">' + days + "</span>" : "") +
+      ". Your surplus accrues at " + '<span class="figure">' + usd2.format(dispHourly) +
+      "</span> for every hour the job costs you.";
+
+    $("statWeeks").textContent = workweekHours > 0
+      ? num1.format(surplusHours / workweekHours) + " wk"
+      : "—";
+  }
+
+  /* --- validation, persistence, wiring ---------------------------------- */
+  function markValidity(el) {
+    if (el.tagName !== "INPUT") return;
+    el.classList.toggle("invalid", !readNumber(el).ok && el.value.trim() !== "");
+  }
+
+  function allFieldIds() {
+    var ids = PROFILE_FIELDS.slice();
+    EXPENSES.forEach(function (k) { ids.push("ex-" + k, "cad-" + k); });
+    return ids;
+  }
+
+  function save() {
+    try {
+      var data = { _setupOpen: $("setup").open };
+      allFieldIds().forEach(function (id) {
+        var el = $(id);
+        data[id] = el.type === "checkbox" ? el.checked : el.value;
+      });
+      localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    } catch (e) { /* private window or blocked storage: defaults still work */ }
+  }
+
+  function restore() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var data = JSON.parse(raw);
+      if (!data) return;
+      allFieldIds().forEach(function (id) {
+        var el = $(id);
+        if (el.type === "checkbox") {
+          if (typeof data[id] === "boolean") el.checked = data[id];
+        } else if (typeof data[id] === "string" && data[id] !== "") {
+          el.value = data[id];
+        }
+      });
+      if (typeof data._setupOpen === "boolean") $("setup").open = data._setupOpen;
+    } catch (e) { /* fall back to the defaults already in the markup */ }
+  }
+
+  $("controls").addEventListener("input", function (e) {
+    markValidity(e.target);
+    recalculate();
+    save();
+  });
+
+  $("itemCost").addEventListener("input", function (e) {
+    markValidity(e.target);
+    recalculate();
+    save();
+  });
+
+  $("presets").addEventListener("click", function (e) {
+    var chip = e.target.closest(".chip");
+    if (!chip) return;
+    var input = $("itemCost");
+    input.value = chip.dataset.cost;
+    input.classList.remove("invalid");
+    recalculate();
+    save();
+  });
+
+  $("setup").addEventListener("toggle", save);
+
+  restore();
+  recalculate();
+})();
+</script>
+</body>
+</html>
