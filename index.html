@@ -417,7 +417,7 @@
             </div>
             <div class="field">
               <label for="pretax" id="pretaxLabel">Pre-tax payroll deductions ($/yr)</label>
-              <input type="number" id="pretax" value="0" min="0" max="100000000" step="500" inputmode="decimal">
+              <input type="number" id="pretax" value="13200" min="0" max="100000000" step="500" inputmode="decimal">
               <span class="hint" id="pretaxHint">401(k), HSA, and any health premium taken out of your paycheck. Don&rsquo;t enter those again below.</span>
             </div>
             <div class="check-row" id="qbiField" hidden>
@@ -524,7 +524,7 @@
                 </tr>
                 <tr class="ex-row" data-key="health">
                   <td class="ex-name"><label for="ex-health">Health &amp; medical</label><span class="hint" id="healthHint">Copays, prescriptions, dental, vision</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-health" value="1100" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-health" value="0" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-health" aria-label="Health frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-health">&mdash;</td>
                 </tr>
@@ -701,7 +701,7 @@
   var QBI_RATE = .20;
   var TAX_YEAR = 2026;
   var ESTIMATED_DUE = "April 15, June 15, September 15, and January 15";
-  var STORE_KEY = "price-in-hours/v5";
+  var STORE_KEY = "price-in-hours/v6";
 
   var EXPENSES = ["housing","utilities","food","transport","insurance","health","debt","care","subs","savings","other"];
   var PROFILE_FIELDS = ["employmentType","grossIncome","bizExpenses","filingStatus","stateRate","pretax",
