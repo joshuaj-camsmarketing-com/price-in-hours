@@ -494,27 +494,33 @@
                 </tr>
                 <tr class="ex-row" data-key="housing">
                   <td class="ex-name"><label for="ex-housing">Housing</label><span class="hint">Rent or mortgage, property tax, HOA, insurance</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-housing" value="2200" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-housing" value="2105" min="0" max="1000000" step="25" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-housing" aria-label="Housing frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-housing">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="utilities">
                   <td class="ex-name"><label for="ex-utilities">Utilities &amp; connectivity</label><span class="hint">Power, gas, water, trash, internet, mobile</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-utilities" value="310" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-utilities" value="531" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-utilities" aria-label="Utilities frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-utilities">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="food">
                   <td class="ex-name"><label for="ex-food">Groceries &amp; household</label><span class="hint">Food, cleaning, toiletries</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-food" value="600" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-food" value="912" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-food" aria-label="Groceries frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-food">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="transport">
-                  <td class="ex-name"><label for="ex-transport">Transportation</label><span class="hint">Car payment, fuel, auto insurance, upkeep, transit</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-transport" value="200" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-name"><label for="ex-transport">Transportation</label><span class="hint">Car payment, fuel, upkeep, registration, transit</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-transport" value="114" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-transport" aria-label="Transportation frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-transport">&mdash;</td>
+                </tr>
+                <tr class="ex-row" data-key="insurance">
+                  <td class="ex-name"><label for="ex-insurance">Insurance premiums</label><span class="hint">Homeowners, auto, umbrella, life. Premiums only, not claims or deductibles</span></td>
+                  <td class="ex-amt"><input type="number" id="ex-insurance" value="2931" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-cad"><select id="cad-insurance" aria-label="Insurance frequency"><option value="12">/mo</option><option value="1" selected>/yr</option></select></td>
+                  <td class="ex-hours" id="hrs-insurance">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="health">
                   <td class="ex-name"><label for="ex-health">Health &amp; medical</label><span class="hint" id="healthHint">Copays, prescriptions, dental, vision</span></td>
@@ -536,7 +542,7 @@
                 </tr>
                 <tr class="ex-row" data-key="subs">
                   <td class="ex-name"><label for="ex-subs">Subscriptions &amp; memberships</label><span class="hint">Streaming, software, gym, professional dues</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-subs" value="78" min="0" max="1000000" step="5" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-subs" value="21" min="0" max="1000000" step="5" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-subs" aria-label="Subscriptions frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-subs">&mdash;</td>
                 </tr>
@@ -548,7 +554,7 @@
                 </tr>
                 <tr class="ex-row" data-key="other">
                   <td class="ex-name"><label for="ex-other">Other fixed costs</label><span class="hint">Anything recurring you can&rsquo;t skip</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-other" value="0" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-other" value="362" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-other" aria-label="Other frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-other">&mdash;</td>
                 </tr>
@@ -695,9 +701,9 @@
   var QBI_RATE = .20;
   var TAX_YEAR = 2026;
   var ESTIMATED_DUE = "April 15, June 15, September 15, and January 15";
-  var STORE_KEY = "price-in-hours/v3";
+  var STORE_KEY = "price-in-hours/v4";
 
-  var EXPENSES = ["housing","utilities","food","transport","health","debt","care","subs","savings","other"];
+  var EXPENSES = ["housing","utilities","food","transport","insurance","health","debt","care","subs","savings","other"];
   var PROFILE_FIELDS = ["employmentType","grossIncome","bizExpenses","filingStatus","stateRate","pretax",
                         "qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost"];
 
