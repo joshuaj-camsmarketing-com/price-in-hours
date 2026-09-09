@@ -388,17 +388,17 @@
             <div class="field">
               <label for="employmentType">How you&rsquo;re paid</label>
               <select id="employmentType">
-                <option value="w2" selected>W-2 employee &mdash; tax withheld</option>
-                <option value="1099">1099 contractor &mdash; nothing withheld</option>
+                <option value="w2">W-2 employee &mdash; tax withheld</option>
+                <option value="1099" selected>1099 contractor &mdash; nothing withheld</option>
               </select>
             </div>
             <div class="field">
               <label for="grossIncome" id="grossLabel">Annual gross pay ($)</label>
-              <input type="number" id="grossIncome" value="80000" min="0" max="100000000" step="1000" inputmode="decimal">
+              <input type="number" id="grossIncome" value="91500" min="0" max="100000000" step="1000" inputmode="decimal">
             </div>
             <div class="field" id="bizField" hidden>
               <label for="bizExpenses">Deductible business expenses ($/yr)</label>
-              <input type="number" id="bizExpenses" value="6000" min="0" max="100000000" step="500" inputmode="decimal">
+              <input type="number" id="bizExpenses" value="1045" min="0" max="100000000" step="500" inputmode="decimal">
               <span class="hint">Mileage, equipment, software, home office, liability insurance, the business half of your phone.</span>
             </div>
             <div class="pair">
@@ -500,7 +500,7 @@
                 </tr>
                 <tr class="ex-row" data-key="utilities">
                   <td class="ex-name"><label for="ex-utilities">Utilities &amp; connectivity</label><span class="hint">Power, gas, water, trash, internet, mobile</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-utilities" value="531" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-utilities" value="447" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-utilities" aria-label="Utilities frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-utilities">&mdash;</td>
                 </tr>
@@ -701,7 +701,7 @@
   var QBI_RATE = .20;
   var TAX_YEAR = 2026;
   var ESTIMATED_DUE = "April 15, June 15, September 15, and January 15";
-  var STORE_KEY = "price-in-hours/v4";
+  var STORE_KEY = "price-in-hours/v5";
 
   var EXPENSES = ["housing","utilities","food","transport","insurance","health","debt","care","subs","savings","other"];
   var PROFILE_FIELDS = ["employmentType","grossIncome","bizExpenses","filingStatus","stateRate","pretax",
