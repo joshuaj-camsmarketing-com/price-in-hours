@@ -349,6 +349,32 @@
   .reserve-alt .figure { color: var(--ink); font-weight: 600; }
   .reserve-note { margin: 9px 0 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
 
+  /* what-if comparison against a saved baseline */
+  .compare {
+    margin-top: 18px; padding: 12px 14px;
+    background: var(--sunken); border: 1px solid var(--line); border-radius: 8px;
+    display: flex; align-items: center; gap: 8px 16px; flex-wrap: wrap;
+  }
+  .compare-label {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+  }
+  .compare-fig {
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: 14px; font-weight: 600; color: var(--ink);
+  }
+  .compare-fig.up { color: var(--brass); }
+  .compare-fig.down { color: var(--alert); }
+  .compare-note { font-size: 12.5px; color: var(--muted); }
+  .compare-actions { margin-left: auto; display: flex; gap: 8px; }
+  .linkbtn {
+    font-family: "IBM Plex Sans", sans-serif; font-size: 12px;
+    background: transparent; color: var(--ink-2);
+    border: 1px solid var(--line); border-radius: 6px;
+    padding: 5px 11px; cursor: pointer; white-space: nowrap;
+  }
+  .linkbtn:hover { border-color: var(--brass); color: var(--ink); background: var(--brass-tint); }
+
   footer { color: var(--muted); font-size: 12px; line-height: 1.55; max-width: 76ch; }
   footer p { margin: 0 0 7px; }
   footer b { color: var(--ink-2); font-weight: 600; }
@@ -610,6 +636,15 @@
         <p class="verdict-lead">Buying <b id="costEcho">$1,100.00</b> costs you</p>
         <p class="hero" id="hero" aria-live="polite">&mdash;</p>
         <p class="verdict-sub" id="heroSub">&mdash;</p>
+        <div class="compare" id="compare">
+          <span class="compare-label">What-if</span>
+          <span class="compare-fig" id="compareSurplus">&mdash;</span>
+          <span class="compare-note" id="compareNote">&mdash;</span>
+          <span class="compare-actions">
+            <button type="button" class="linkbtn" id="resetBaseline">Undo changes</button>
+            <button type="button" class="linkbtn" id="setBaseline">Save as baseline</button>
+          </span>
+        </div>
       </div>
       <dl class="aside-stats">
         <div class="stat-row"><dt>In working weeks of surplus</dt><dd id="statWeeks">&mdash;</dd></div>
@@ -782,6 +817,70 @@
   }
 
   /* --- the calculation -------------------------------------------------- */
+  /* --- what-if baseline ------------------------------------------------
+     Lets someone change a figure and see the effect without losing the
+     configured setup. The baseline stores both the field values and the
+     surplus they produced, so comparing costs no extra recalculation. */
+  var BASE_KEY = "price-in-hours/baseline/v1";
+  var baseline = null, lastSurplus = 0, lastHourly = 0;
+
+  function currentValues() {
+    var o = {};
+    allFieldIds().forEach(function (id) {
+      var el = $(id);
+      o[id] = el.type === "checkbox" ? String(el.checked) : el.value;
+    });
+    return o;
+  }
+
+  function sameAsBaseline() {
+    if (!baseline) return true;
+    var now = currentValues();
+    for (var k in baseline.values) if (baseline.values[k] !== now[k]) return false;
+    return true;
+  }
+
+  function writeBaseline(monthlySurplus, hourlySurplus) {
+    baseline = { values: currentValues(), surplus: monthlySurplus, hourly: hourlySurplus };
+    try { localStorage.setItem(BASE_KEY, JSON.stringify(baseline)); } catch (e) {}
+  }
+
+  function readBaseline() {
+    try {
+      var raw = localStorage.getItem(BASE_KEY);
+      baseline = raw ? JSON.parse(raw) : null;
+    } catch (e) { baseline = null; }
+  }
+
+  function updateCompare(monthlySurplus, hourlySurplus, cost) {
+    if (!baseline) { writeBaseline(monthlySurplus, hourlySurplus); }
+
+    if (sameAsBaseline()) {
+      $("compareSurplus").textContent = "At your baseline";
+      $("compareSurplus").className = "compare-fig";
+      $("compareNote").textContent = "Change any figure to see what it does to your surplus.";
+      $("resetBaseline").hidden = true;
+      $("setBaseline").hidden = true;
+      return;
+    }
+
+    $("resetBaseline").hidden = false;
+    $("setBaseline").hidden = false;
+
+    var delta = monthlySurplus - baseline.surplus;
+    var el = $("compareSurplus");
+    el.textContent = (delta >= 0 ? "+" : "\u2212") + usd0.format(Math.abs(delta)) + " / mo";
+    el.className = "compare-fig " + (delta >= 0 ? "up" : "down");
+
+    if (cost > 0 && hourlySurplus > 0 && baseline.hourly > 0) {
+      var was = cost / baseline.hourly, now = cost / hourlySurplus;
+      $("compareNote").textContent = "This purchase: " + num0.format(now) + " h, was " + num0.format(was) + " h"
+        + " \u00b7 surplus " + usd0.format(baseline.surplus) + " \u2192 " + usd0.format(monthlySurplus) + " / mo";
+    } else {
+      $("compareNote").textContent = "surplus " + usd0.format(baseline.surplus) + " \u2192 " + usd0.format(monthlySurplus) + " / mo";
+    }
+  }
+
   function recalculate() {
     var gross     = val("grossIncome");
     var stateRate = val("stateRate") / 100;
@@ -972,6 +1071,9 @@
     $("statDispHourly").textContent = committedHours > 0 ? usd2.format(dispHourly) : "—";
     $("statRawHours").textContent = rawHourly > 0 ? num1.format(cost / rawHourly) + " h" : "—";
 
+    lastSurplus = disposable / 12; lastHourly = dispHourly;
+    updateCompare(lastSurplus, lastHourly, cost);
+
     var hero = $("hero"), notice = $("notice");
 
     /* --- states where no surplus rate exists --- */
@@ -1079,8 +1181,27 @@
     save();
   });
 
+  $("setBaseline").addEventListener("click", function () {
+    writeBaseline(lastSurplus, lastHourly);
+    recalculate();
+  });
+
+  $("resetBaseline").addEventListener("click", function () {
+    if (!baseline) return;
+    allFieldIds().forEach(function (id) {
+      var el = $(id);
+      if (!(id in baseline.values)) return;
+      if (el.type === "checkbox") el.checked = baseline.values[id] === "true";
+      else el.value = baseline.values[id];
+      el.classList.remove("invalid");
+    });
+    recalculate();
+    save();
+  });
+
   $("setup").addEventListener("toggle", save);
 
+  readBaseline();
   restore();
   recalculate();
 })();
