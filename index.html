@@ -25,6 +25,7 @@
     --brass:      #8a6218;
     --brass-fill: #c69434;
     --brass-tint: #f7f0df;
+    --on-brass:   #1a1406;
 
     --seg-tax:   #9c6156;
     --seg-pre:   #b0a893;
@@ -349,6 +350,88 @@
   .reserve-alt .figure { color: var(--ink); font-weight: 600; }
   .reserve-note { margin: 9px 0 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.5; }
 
+  /* ---------- current goal: a research bar fed by surplus ---------- */
+  .goal, .goal-body { display: grid; gap: 16px; }
+  .goal-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 16px; flex-wrap: wrap; }
+  .goal-title { display: grid; gap: 4px; min-width: 0; }
+  .goal-name {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-size: clamp(22px, 3.6vw, 28px); font-weight: 700;
+    letter-spacing: -.02em; line-height: 1.1; margin: 0; overflow-wrap: anywhere;
+  }
+  .goal-cost {
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: 16px; font-weight: 600; color: var(--ink-2); white-space: nowrap;
+  }
+  .goal-source { font-size: 12px; color: var(--muted); }
+  .goal-empty { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 62ch; }
+
+  .research {
+    position: relative; height: 22px; border-radius: 6px; overflow: hidden;
+    background: var(--sunken); border: 1px solid var(--line);
+  }
+  .research-confirmed, .research-projected {
+    position: absolute; top: 0; bottom: 0; width: 0;
+    transition: width .35s ease, left .35s ease;
+  }
+  .research-confirmed { left: 0; background: var(--brass-fill); }
+  .research-projected {
+    left: 0; opacity: .6;
+    background: repeating-linear-gradient(135deg, var(--brass-fill) 0 6px, transparent 6px 12px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .research-confirmed, .research-projected { transition: none; }
+  }
+
+  .eta { margin: 0; font-size: 14px; color: var(--ink-2); }
+  .eta b {
+    font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+    font-size: 20px; font-weight: 700; letter-spacing: -.01em; color: var(--brass);
+  }
+  .eta.stalled b { color: var(--alert); }
+
+  .goal-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 14px; }
+  .goal-stats .v {
+    display: block; margin-top: 3px;
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-size: 16px; font-weight: 600; color: var(--ink);
+  }
+
+  table.goal-log { border-collapse: collapse; width: 100%; min-width: 360px; font-size: 13px; }
+  table.goal-log th {
+    text-align: left; padding: 0 0 6px; border-bottom: 1px solid var(--line);
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; font-weight: 500;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  }
+  table.goal-log td { padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
+  table.goal-log .n { text-align: right; font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums; }
+  table.goal-log td.up { color: var(--brass); }
+  table.goal-log td.down { color: var(--alert); }
+
+  .ask-name { flex: 1 1 200px; display: grid; gap: 6px; }
+  .ask-name label { font-size: 13px; color: var(--ink-2); font-weight: 500; }
+  .ask-name input {
+    font-family: "IBM Plex Sans", sans-serif; font-size: 18px; padding: 0 14px;
+    color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; width: 100%;
+  }
+  .ask-name input:hover { border-color: var(--muted); }
+  .ask-name input:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; border-color: transparent; }
+  .lockbtn {
+    font-family: "IBM Plex Sans", sans-serif; font-size: 14px; font-weight: 600;
+    color: var(--on-brass); background: var(--brass-fill);
+    border: 1px solid var(--brass-fill); border-radius: 8px;
+    padding: 0 20px; cursor: pointer; white-space: nowrap;
+  }
+  .lockbtn:hover { filter: brightness(1.07); }
+  .lockbtn:disabled { cursor: not-allowed; opacity: .45; filter: none; }
+  .ask-field input, .ask-name input, .lockbtn { height: 58px; }
+  @media (max-width: 560px) { .lockbtn { flex: 1 1 100%; } }
+  .lock-note { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+  .queue-line { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); max-width: 46ch; }
+  .queue-line b { color: var(--ink); font-weight: 600; }
+
   /* what-if comparison against a saved baseline */
   .compare {
     margin-top: 18px; padding: 12px 14px;
@@ -610,22 +693,67 @@
     </div>
   </details>
 
+  <!-- ============ current goal ============ -->
+  <section class="panel pad goal" aria-labelledby="goalHeading">
+    <div class="goal-head">
+      <div class="goal-title">
+        <span class="micro" id="goalHeading">Current goal</span>
+        <p class="goal-name" id="goalName">Nothing locked in</p>
+        <span class="goal-source" id="goalSource"></span>
+      </div>
+      <span class="goal-cost" id="goalCost"></span>
+    </div>
+
+    <p class="goal-empty" id="goalEmpty">Price something below and lock it in. From then on every dollar of surplus goes toward it, and nothing else fun gets bought until the bar is full.</p>
+
+    <div class="goal-body" id="goalBody" hidden>
+      <div class="research" id="research" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="goalName">
+        <div class="research-confirmed" id="researchConfirmed"></div>
+        <div class="research-projected" id="researchProjected"></div>
+      </div>
+
+      <p class="eta" id="goalEta" aria-live="polite">&mdash;</p>
+
+      <div class="goal-stats">
+        <div><span class="micro">Confirmed</span><span class="v" id="goalConfirmed">&mdash;</span></div>
+        <div><span class="micro">Estimated since</span><span class="v" id="goalProjected">&mdash;</span></div>
+        <div><span class="micro">Still to go</span><span class="v" id="goalRemaining">&mdash;</span></div>
+        <div><span class="micro">Going in / mo</span><span class="v" id="goalRate">&mdash;</span></div>
+      </div>
+
+      <div class="scroller" id="goalLogWrap" hidden>
+        <table class="goal-log">
+          <thead><tr><th>Month</th><th class="n">Projected</th><th class="n">Actual</th><th class="n">Difference</th></tr></thead>
+          <tbody id="goalLog"></tbody>
+        </table>
+      </div>
+
+      <div><button type="button" class="linkbtn" id="unlockGoal">Unlock</button></div>
+    </div>
+  </section>
+
   <!-- ============ the ask ============ -->
   <section class="panel pad ask">
     <div class="ask-row">
+      <div class="ask-name">
+        <label for="itemName">What is it?</label>
+        <input type="text" id="itemName" maxlength="60" placeholder="New phone" autocomplete="off">
+      </div>
       <div class="ask-field">
-        <label for="itemCost">What do you want to buy? ($)</label>
+        <label for="itemCost">What does it cost? ($)</label>
         <input type="number" id="itemCost" value="12" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0.00">
       </div>
+      <button type="button" class="lockbtn" id="lockGoal">Lock it in</button>
     </div>
+    <p class="lock-note" id="lockNote" hidden></p>
     <div class="chips" id="presets">
-      <button type="button" class="chip" data-cost="69.99">Video game <span class="amt">$70</span></button>
-      <button type="button" class="chip" data-cost="185">Concert ticket <span class="amt">$185</span></button>
-      <button type="button" class="chip" data-cost="249">Earbuds <span class="amt">$249</span></button>
-      <button type="button" class="chip" data-cost="499">Game console <span class="amt">$499</span></button>
-      <button type="button" class="chip" data-cost="640">Weekend away <span class="amt">$640</span></button>
-      <button type="button" class="chip" data-cost="1100">New phone <span class="amt">$1,100</span></button>
-      <button type="button" class="chip" data-cost="3200">Vacation <span class="amt">$3,200</span></button>
+      <button type="button" class="chip" data-cost="69.99" data-name="Video game">Video game <span class="amt">$70</span></button>
+      <button type="button" class="chip" data-cost="185" data-name="Concert ticket">Concert ticket <span class="amt">$185</span></button>
+      <button type="button" class="chip" data-cost="249" data-name="Earbuds">Earbuds <span class="amt">$249</span></button>
+      <button type="button" class="chip" data-cost="499" data-name="Game console">Game console <span class="amt">$499</span></button>
+      <button type="button" class="chip" data-cost="640" data-name="Weekend away">Weekend away <span class="amt">$640</span></button>
+      <button type="button" class="chip" data-cost="1100" data-name="New phone">New phone <span class="amt">$1,100</span></button>
+      <button type="button" class="chip" data-cost="3200" data-name="Vacation">Vacation <span class="amt">$3,200</span></button>
     </div>
   </section>
 
@@ -636,6 +764,7 @@
         <p class="verdict-lead">Buying <b id="costEcho">$1,100.00</b> costs you</p>
         <p class="hero" id="hero" aria-live="polite">&mdash;</p>
         <p class="verdict-sub" id="heroSub">&mdash;</p>
+        <p class="queue-line" id="queueLine" hidden></p>
         <div class="compare" id="compare">
           <span class="compare-label">What-if</span>
           <span class="compare-fig" id="compareSurplus">&mdash;</span>
@@ -698,6 +827,7 @@
   </section>
 
   <footer>
+    <p><b>How goals work.</b> Lock in one purchase at a time and every dollar of surplus goes toward it, the way a strategy game researches one technology at a time. The solid part of the bar is money confirmed from real bank statements at the end of each month; the striped part is the estimate for the time since. Change any figure and the payoff date moves with it. Anything else you price waits in line until the goal is paid off, and whatever overshoots carries into the next one.</p>
     <p><b>How the estimate is built.</b> Federal tax uses the 2026 IRS brackets and standard deduction for your filing status; pre-tax payroll deductions reduce federal and state taxable income but not payroll tax. FICA is 6.2% Social Security on the first $184,500 of wages plus 1.45% Medicare on all wages, with the extra 0.9% surtax above the threshold for your status. State tax is applied as the flat rate you enter.</p>
     <p><b>If you&rsquo;re a 1099 contractor.</b> Self-employment tax is 15.3% on 92.35% of net profit &mdash; both halves of Social Security and Medicare, because there is no employer paying the other one &mdash; with the Social Security half capped at $184,500 and the extra 0.9% Medicare surtax above the threshold for your status. Half of that tax is deducted before income tax, and the 20% qualified business income deduction is applied when claimed. The result is money you owe but nobody collects for you, so the tool treats it as already spent from the day you invoice it.</p>
     <p>Two limits worth knowing: the QBI deduction here is modelled below the phase-in threshold, where it is a clean 20%, and is warned about above it, where W-2 wage limits and specified-service rules can cut or eliminate it; and state estimated tax is folded into the same reserve figure at the flat rate you enter. A CPA will beat this on both.</p>
@@ -740,7 +870,11 @@
 
   var EXPENSES = ["housing","utilities","food","transport","insurance","health","debt","care","subs","savings","other"];
   var PROFILE_FIELDS = ["employmentType","grossIncome","bizExpenses","filingStatus","stateRate","pretax",
-                        "qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost"];
+                        "qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost","itemName"];
+
+  // Pricing a purchase isn't a change to the budget, so these never count
+  // against the what-if baseline or get restored by undo.
+  var NOT_BUDGET = { itemCost: true, itemName: true };
 
   var usd0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
   var usd2 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
@@ -816,7 +950,177 @@
     return d.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: "UTC" });
   }
 
-  /* --- the calculation -------------------------------------------------- */
+  /* --- current goal: a research bar fed by surplus ---------------------
+     COMMITTED_GOALS is the household's shared record, updated from real
+     bank statements at the end of each month, so everyone who opens the
+     page sees the same bar. A goal locked in the browser lives only on
+     that device until it is recorded here; a recorded goal always wins.
+
+     Each month keeps what the model projected beside what actually came
+     in. The bar fills solid from confirmed money and striped from the
+     estimate for the time since the last confirmed month. */
+  var COMMITTED_GOALS = {
+    active: null,
+    completed: []
+  };
+
+  var GOAL_KEY = "price-in-hours/goal/v1";
+  var DAY_MS = 86400000, DAYS_PER_MONTH = 30.4375;
+  var dateFmt  = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+  var monthFmt = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
+
+  function readLocalGoal() {
+    try { var raw = localStorage.getItem(GOAL_KEY); return raw ? JSON.parse(raw) : null; }
+    catch (e) { return null; }
+  }
+
+  function writeLocalGoal(goal) {
+    try {
+      if (goal) localStorage.setItem(GOAL_KEY, JSON.stringify(goal));
+      else localStorage.removeItem(GOAL_KEY);
+    } catch (e) { /* storage blocked: the goal lasts for this visit only */ }
+  }
+
+  function activeGoal() {
+    if (COMMITTED_GOALS.active) return { goal: COMMITTED_GOALS.active, shared: true };
+    var local = readLocalGoal();
+    return local ? { goal: local, shared: false } : null;
+  }
+
+  function dayFromISO(iso) {
+    var p = String(iso).split("-");
+    return Date.UTC(+p[0], (+p[1] || 1) - 1, +p[2] || 1);
+  }
+
+  function today() {
+    var d = new Date();
+    return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  // Confirmed money toward a goal, and the day that confirmation runs up to.
+  function goalProgress(goal) {
+    var confirmed = +goal.carriedIn || 0, through = dayFromISO(goal.lockedOn);
+    (goal.months || []).forEach(function (m) {
+      confirmed += +m.actual || 0;
+      var p = String(m.month).split("-");
+      through = Math.max(through, Date.UTC(+p[0], +p[1], 1));   // first of the next month
+    });
+    return { confirmed: confirmed, through: through };
+  }
+
+  // The day the bar fills at a given monthly surplus; null if it never does.
+  function payoffDate(goal, monthlySurplus) {
+    var prog = goalProgress(goal), left = (+goal.cost || 0) - prog.confirmed;
+    if (left <= 0) return prog.through;
+    if (!(monthlySurplus > 0)) return null;
+    return prog.through + (left / monthlySurplus) * DAYS_PER_MONTH * DAY_MS;
+  }
+
+  function describeSpan(ms) {
+    var days = ms / DAY_MS, months = days / DAYS_PER_MONTH;
+    if (days < 14) { var n = Math.max(1, Math.round(days)); return n + (n === 1 ? " day" : " days"); }
+    if (months < 2) return Math.round(days / 7) + " weeks";
+    if (months < 24) return num1.format(months) + " months";
+    return num1.format(months / 12) + " years";
+  }
+
+  function describeGap(days) { return describeSpan(Math.abs(days) * DAY_MS); }
+
+  function renderGoal(monthlySurplus) {
+    var found = activeGoal(), lockBtn = $("lockGoal"), lockNote = $("lockNote"), queue = $("queueLine");
+    queue.hidden = true;
+
+    if (!found) {
+      $("goalName").textContent = "Nothing locked in";
+      $("goalCost").textContent = "";
+      $("goalSource").textContent = "";
+      $("goalEmpty").hidden = false;
+      $("goalBody").hidden = true;
+      lockBtn.disabled = !(val("itemCost") > 0);
+      lockNote.hidden = true;
+      return;
+    }
+
+    var goal = found.goal, now = today(), cost = +goal.cost || 0;
+    var prog = goalProgress(goal);
+    var confirmed = Math.min(prog.confirmed, cost);
+    var sinceMonths = Math.max(0, (now - prog.through) / DAY_MS / DAYS_PER_MONTH);
+    var estimated = Math.max(0, Math.min(cost - confirmed, sinceMonths * Math.max(0, monthlySurplus)));
+    var remaining = Math.max(0, cost - confirmed - estimated);
+
+    $("goalEmpty").hidden = true;
+    $("goalBody").hidden = false;
+    $("goalName").textContent = goal.name;
+    $("goalCost").textContent = usd0.format(cost);
+    $("goalSource").textContent = "Locked in " + dateFmt.format(dayFromISO(goal.lockedOn)) + " · " +
+      (found.shared ? "confirmed from bank statements" : "on this device until the next statement is recorded");
+
+    var pc = cost > 0 ? confirmed / cost * 100 : 0, pe = cost > 0 ? estimated / cost * 100 : 0;
+    $("researchConfirmed").style.width = pc + "%";
+    $("researchProjected").style.left = pc + "%";
+    $("researchProjected").style.width = pe + "%";
+    $("research").setAttribute("aria-valuenow", String(Math.round(pc + pe)));
+
+    $("goalConfirmed").textContent = usd0.format(confirmed);
+    $("goalProjected").textContent = usd0.format(estimated);
+    $("goalRemaining").textContent = usd0.format(remaining);
+    $("goalRate").textContent = usd0.format(Math.max(0, monthlySurplus));
+
+    var eta = $("goalEta"), done = payoffDate(goal, monthlySurplus);
+    eta.className = "eta";
+    if (prog.confirmed >= cost) {
+      eta.innerHTML = "<b>Paid off.</b> ";
+      eta.appendChild(document.createTextNode(usd0.format(prog.confirmed - cost) + " carries over into the next goal."));
+    } else if (done === null) {
+      eta.className = "eta stalled";
+      eta.innerHTML = "<b>Stalled.</b> No surplus is going in, so the bar never fills at these figures.";
+    } else if (done <= now) {
+      eta.innerHTML = "<b>Should be full by now.</b> This month’s statement will confirm it.";
+    } else {
+      eta.innerHTML = "Paid off around <b>" + dateFmt.format(done) + "</b> — " + describeSpan(done - now) + " from today";
+    }
+
+    // What the model projected each month beside what really came in.
+    var months = goal.months || [], log = $("goalLog");
+    $("goalLogWrap").hidden = months.length === 0;
+    log.textContent = "";
+    months.forEach(function (m) {
+      var p = String(m.month).split("-"), diff = (+m.actual || 0) - (+m.projected || 0);
+      var tr = document.createElement("tr");
+      [
+        [monthFmt.format(Date.UTC(+p[0], +p[1] - 1, 1)), ""],
+        [usd0.format(+m.projected || 0), "n"],
+        [usd0.format(+m.actual || 0), "n"],
+        [(diff >= 0 ? "+" : "−") + usd0.format(Math.abs(diff)), "n " + (diff >= 0 ? "up" : "down")]
+      ].forEach(function (cell) {
+        var td = document.createElement("td");
+        td.textContent = cell[0];
+        if (cell[1]) td.className = cell[1];
+        tr.appendChild(td);
+      });
+      if (m.note) tr.title = m.note;
+      log.appendChild(tr);
+    });
+
+    $("unlockGoal").hidden = found.shared;
+    lockBtn.disabled = true;
+    lockNote.hidden = false;
+    lockNote.textContent = "“" + goal.name + "” is locked in. Finish it or unlock it before starting another.";
+
+    // Anything else priced now waits in line behind the goal.
+    var itemCost = val("itemCost"), itemName = $("itemName").value.trim();
+    var isTheGoal = itemName === goal.name && itemCost === cost;
+    if (itemCost > 0 && monthlySurplus > 0 && done !== null && !isTheGoal) {
+      var ready = Math.max(done, now) + (itemCost / monthlySurplus) * DAYS_PER_MONTH * DAY_MS;
+      queue.hidden = false;
+      queue.textContent = "Queued behind ";
+      var who = document.createElement("b"); who.textContent = goal.name; queue.appendChild(who);
+      queue.appendChild(document.createTextNode(" — realistically yours around "));
+      var when = document.createElement("b"); when.textContent = dateFmt.format(ready); queue.appendChild(when);
+      queue.appendChild(document.createTextNode("."));
+    }
+  }
+
   /* --- what-if baseline ------------------------------------------------
      Lets someone change a figure and see the effect without losing the
      configured setup. The baseline stores both the field values and the
@@ -827,6 +1131,7 @@
   function currentValues() {
     var o = {};
     allFieldIds().forEach(function (id) {
+      if (NOT_BUDGET[id]) return;
       var el = $(id);
       o[id] = el.type === "checkbox" ? String(el.checked) : el.value;
     });
@@ -836,7 +1141,9 @@
   function sameAsBaseline() {
     if (!baseline) return true;
     var now = currentValues();
-    for (var k in baseline.values) if (baseline.values[k] !== now[k]) return false;
+    for (var k in baseline.values) {
+      if (!NOT_BUDGET[k] && baseline.values[k] !== now[k]) return false;
+    }
     return true;
   }
 
@@ -858,7 +1165,9 @@
     if (sameAsBaseline()) {
       $("compareSurplus").textContent = "At your baseline";
       $("compareSurplus").className = "compare-fig";
-      $("compareNote").textContent = "Change any figure to see what it does to your surplus.";
+      $("compareNote").textContent = activeGoal()
+        ? "Change any figure to see how it moves your payoff date."
+        : "Change any figure to see what it does to your surplus.";
       $("resetBaseline").hidden = true;
       $("setBaseline").hidden = true;
       return;
@@ -879,8 +1188,21 @@
     } else {
       $("compareNote").textContent = "surplus " + usd0.format(baseline.surplus) + " \u2192 " + usd0.format(monthlySurplus) + " / mo";
     }
+
+    // With a goal locked in, the question that matters is when it's paid off.
+    var found = activeGoal();
+    if (found) {
+      var then = payoffDate(found.goal, baseline.surplus), soon = payoffDate(found.goal, monthlySurplus);
+      if (then !== null && soon !== null) {
+        var days = Math.round((then - soon) / DAY_MS);
+        if (days !== 0) $("compareNote").textContent += " \u00b7 goal paid off " + describeGap(days) + (days > 0 ? " sooner" : " later");
+      } else if (soon === null && then !== null) {
+        $("compareNote").textContent += " \u00b7 goal stalls with no surplus going in";
+      }
+    }
   }
 
+  /* --- the calculation -------------------------------------------------- */
   function recalculate() {
     var gross     = val("grossIncome");
     var stateRate = val("stateRate") / 100;
@@ -1073,6 +1395,7 @@
 
     lastSurplus = disposable / 12; lastHourly = dispHourly;
     updateCompare(lastSurplus, lastHourly, cost);
+    renderGoal(lastSurplus);
 
     var hero = $("hero"), notice = $("notice");
 
@@ -1171,14 +1494,50 @@
     save();
   });
 
+  $("itemName").addEventListener("input", function () {
+    recalculate();
+    save();
+  });
+
   $("presets").addEventListener("click", function (e) {
     var chip = e.target.closest(".chip");
     if (!chip) return;
     var input = $("itemCost");
     input.value = chip.dataset.cost;
     input.classList.remove("invalid");
+    if (chip.dataset.name) $("itemName").value = chip.dataset.name;
     recalculate();
     save();
+  });
+
+  $("lockGoal").addEventListener("click", function () {
+    if (activeGoal() || !(val("itemCost") > 0)) return;
+    var d = new Date(), pad = function (n) { return (n < 10 ? "0" : "") + n; };
+    writeLocalGoal({
+      name: $("itemName").value.trim() || "Unnamed goal",
+      cost: val("itemCost"),
+      lockedOn: d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()),
+      carriedIn: 0,
+      months: []
+    });
+    recalculate();
+  });
+
+  // Two clicks to unlock, so a stray tap can't wipe a goal in progress.
+  var unlockTimer = null;
+  $("unlockGoal").addEventListener("click", function () {
+    var btn = this, found = activeGoal();
+    if (!found || found.shared) return;
+    if (!unlockTimer) {
+      btn.textContent = "Click again to unlock";
+      unlockTimer = setTimeout(function () { unlockTimer = null; btn.textContent = "Unlock"; }, 4000);
+      return;
+    }
+    clearTimeout(unlockTimer);
+    unlockTimer = null;
+    btn.textContent = "Unlock";
+    writeLocalGoal(null);
+    recalculate();
   });
 
   $("setBaseline").addEventListener("click", function () {
@@ -1190,7 +1549,7 @@
     if (!baseline) return;
     allFieldIds().forEach(function (id) {
       var el = $(id);
-      if (!(id in baseline.values)) return;
+      if (NOT_BUDGET[id] || !(id in baseline.values)) return;
       if (el.type === "checkbox") el.checked = baseline.values[id] === "true";
       else el.value = baseline.values[id];
       el.classList.remove("invalid");
