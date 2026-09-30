@@ -428,6 +428,8 @@
   .ask-field input, .ask-name input, .lockbtn { height: 58px; }
   @media (max-width: 560px) { .lockbtn { flex: 1 1 100%; } }
   .lock-note { margin: 0; font-size: 12.5px; color: var(--muted); }
+  .funding-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12.5px; color: var(--muted); }
+  .funding-row select { width: auto; font-size: 13px; padding: 7px 9px; }
 
   .queue-line { margin: 10px 0 0; font-size: 13px; color: var(--ink-2); max-width: 46ch; }
   .queue-line b { color: var(--ink); font-weight: 600; }
@@ -526,7 +528,7 @@
             </div>
             <div class="field">
               <label for="pretax" id="pretaxLabel">Pre-tax payroll deductions ($/yr)</label>
-              <input type="number" id="pretax" value="13200" min="0" max="100000000" step="500" inputmode="decimal">
+              <input type="number" id="pretax" value="12072" min="0" max="100000000" step="500" inputmode="decimal">
               <span class="hint" id="pretaxHint">401(k), HSA, and any health premium taken out of your paycheck. Don&rsquo;t enter those again below.</span>
             </div>
             <div class="check-row" id="qbiField" hidden>
@@ -603,7 +605,7 @@
                 </tr>
                 <tr class="ex-row" data-key="housing">
                   <td class="ex-name"><label for="ex-housing">Housing</label><span class="hint">Rent or mortgage, property tax, HOA, insurance</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-housing" value="2105" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-housing" value="2086" min="0" max="1000000" step="25" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-housing" aria-label="Housing frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-housing">&mdash;</td>
                 </tr>
@@ -627,7 +629,7 @@
                 </tr>
                 <tr class="ex-row" data-key="insurance">
                   <td class="ex-name"><label for="ex-insurance">Insurance premiums</label><span class="hint">Homeowners, auto, umbrella, life. Premiums only, not claims or deductibles</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-insurance" value="2931" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-insurance" value="2464" min="0" max="1000000" step="25" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-insurance" aria-label="Insurance frequency"><option value="12">/mo</option><option value="1" selected>/yr</option></select></td>
                   <td class="ex-hours" id="hrs-insurance">&mdash;</td>
                 </tr>
@@ -746,6 +748,14 @@
       <button type="button" class="lockbtn" id="lockGoal">Lock it in</button>
     </div>
     <p class="lock-note" id="lockNote" hidden></p>
+    <div class="funding-row">
+      <label for="goalFunding">Fund a locked goal from</label>
+      <select id="goalFunding">
+        <option value="surplus" selected>Surplus only</option>
+        <option value="savings">The savings line</option>
+        <option value="both">Savings and surplus</option>
+      </select>
+    </div>
     <div class="chips" id="presets">
       <button type="button" class="chip" data-cost="69.99" data-name="Video game">Video game <span class="amt">$70</span></button>
       <button type="button" class="chip" data-cost="185" data-name="Concert ticket">Concert ticket <span class="amt">$185</span></button>
@@ -870,11 +880,11 @@
 
   var EXPENSES = ["housing","utilities","food","transport","insurance","health","debt","care","subs","savings","other"];
   var PROFILE_FIELDS = ["employmentType","grossIncome","bizExpenses","filingStatus","stateRate","pretax",
-                        "qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost","itemName"];
+                        "qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost","itemName","goalFunding"];
 
   // Pricing a purchase isn't a change to the budget, so these never count
   // against the what-if baseline or get restored by undo.
-  var NOT_BUDGET = { itemCost: true, itemName: true };
+  var NOT_BUDGET = { itemCost: true, itemName: true, goalFunding: true };
 
   var usd0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
   var usd2 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 });
@@ -1008,12 +1018,28 @@
     return { confirmed: confirmed, through: through };
   }
 
-  // The day the bar fills at a given monthly surplus; null if it never does.
-  function payoffDate(goal, monthlySurplus) {
+  // Money a goal draws each month. Saving into a bucket and then buying is
+  // a different plan from spending what's left over, and the payoff date is
+  // only right if the tool knows which one is being used.
+  var FUNDING_LABEL = {
+    surplus: "funded from surplus",
+    savings: "funded from the savings line",
+    both: "funded from savings and surplus"
+  };
+
+  function goalRate(goal, monthlySurplus, savingsMonthly) {
+    var how = goal.funding || "surplus";
+    if (how === "savings") return savingsMonthly;
+    if (how === "both") return monthlySurplus + savingsMonthly;
+    return monthlySurplus;
+  }
+
+  // The day the bar fills at a given monthly rate; null if it never does.
+  function payoffDate(goal, rate) {
     var prog = goalProgress(goal), left = (+goal.cost || 0) - prog.confirmed;
     if (left <= 0) return prog.through;
-    if (!(monthlySurplus > 0)) return null;
-    return prog.through + (left / monthlySurplus) * DAYS_PER_MONTH * DAY_MS;
+    if (!(rate > 0)) return null;
+    return prog.through + (left / rate) * DAYS_PER_MONTH * DAY_MS;
   }
 
   function describeSpan(ms) {
@@ -1026,7 +1052,7 @@
 
   function describeGap(days) { return describeSpan(Math.abs(days) * DAY_MS); }
 
-  function renderGoal(monthlySurplus) {
+  function renderGoal(monthlySurplus, savingsMonthly) {
     var found = activeGoal(), lockBtn = $("lockGoal"), lockNote = $("lockNote"), queue = $("queueLine");
     queue.hidden = true;
 
@@ -1042,18 +1068,20 @@
     }
 
     var goal = found.goal, now = today(), cost = +goal.cost || 0;
+    var rate = goalRate(goal, monthlySurplus, savingsMonthly);
     var prog = goalProgress(goal);
     var confirmed = Math.min(prog.confirmed, cost);
     var sinceMonths = Math.max(0, (now - prog.through) / DAY_MS / DAYS_PER_MONTH);
-    var estimated = Math.max(0, Math.min(cost - confirmed, sinceMonths * Math.max(0, monthlySurplus)));
+    var estimated = Math.max(0, Math.min(cost - confirmed, sinceMonths * Math.max(0, rate)));
     var remaining = Math.max(0, cost - confirmed - estimated);
 
     $("goalEmpty").hidden = true;
     $("goalBody").hidden = false;
     $("goalName").textContent = goal.name;
     $("goalCost").textContent = usd0.format(cost);
-    $("goalSource").textContent = "Locked in " + dateFmt.format(dayFromISO(goal.lockedOn)) + " · " +
-      (found.shared ? "confirmed from bank statements" : "on this device until the next statement is recorded");
+    $("goalSource").textContent = "Locked in " + dateFmt.format(dayFromISO(goal.lockedOn)) +
+      " · " + (FUNDING_LABEL[goal.funding || "surplus"]) +
+      " · " + (found.shared ? "confirmed from bank statements" : "on this device until the next statement is recorded");
 
     var pc = cost > 0 ? confirmed / cost * 100 : 0, pe = cost > 0 ? estimated / cost * 100 : 0;
     $("researchConfirmed").style.width = pc + "%";
@@ -1064,16 +1092,16 @@
     $("goalConfirmed").textContent = usd0.format(confirmed);
     $("goalProjected").textContent = usd0.format(estimated);
     $("goalRemaining").textContent = usd0.format(remaining);
-    $("goalRate").textContent = usd0.format(Math.max(0, monthlySurplus));
+    $("goalRate").textContent = usd0.format(Math.max(0, rate));
 
-    var eta = $("goalEta"), done = payoffDate(goal, monthlySurplus);
+    var eta = $("goalEta"), done = payoffDate(goal, rate);
     eta.className = "eta";
     if (prog.confirmed >= cost) {
       eta.innerHTML = "<b>Paid off.</b> ";
       eta.appendChild(document.createTextNode(usd0.format(prog.confirmed - cost) + " carries over into the next goal."));
     } else if (done === null) {
       eta.className = "eta stalled";
-      eta.innerHTML = "<b>Stalled.</b> No surplus is going in, so the bar never fills at these figures.";
+      eta.innerHTML = "<b>Stalled.</b> Nothing is going in, so the bar never fills at these figures.";
     } else if (done <= now) {
       eta.innerHTML = "<b>Should be full by now.</b> This month’s statement will confirm it.";
     } else {
@@ -1107,10 +1135,13 @@
     lockNote.hidden = false;
     lockNote.textContent = "“" + goal.name + "” is locked in. Finish it or unlock it before starting another.";
 
-    // Anything else priced now waits in line behind the goal.
+    // Anything else priced now waits in line behind the goal, but only when
+    // the goal is actually eating the surplus. A goal funded purely from the
+    // savings line leaves the surplus free to buy other things.
     var itemCost = val("itemCost"), itemName = $("itemName").value.trim();
     var isTheGoal = itemName === goal.name && itemCost === cost;
-    if (itemCost > 0 && monthlySurplus > 0 && done !== null && !isTheGoal) {
+    var eatsSurplus = (goal.funding || "surplus") !== "savings";
+    if (itemCost > 0 && monthlySurplus > 0 && done !== null && !isTheGoal && eatsSurplus) {
       var ready = Math.max(done, now) + (itemCost / monthlySurplus) * DAYS_PER_MONTH * DAY_MS;
       queue.hidden = false;
       queue.textContent = "Queued behind ";
@@ -1126,7 +1157,7 @@
      configured setup. The baseline stores both the field values and the
      surplus they produced, so comparing costs no extra recalculation. */
   var BASE_KEY = "price-in-hours/baseline/v1";
-  var baseline = null, lastSurplus = 0, lastHourly = 0;
+  var baseline = null, lastSurplus = 0, lastHourly = 0, lastSavings = 0;
 
   function currentValues() {
     var o = {};
@@ -1147,8 +1178,8 @@
     return true;
   }
 
-  function writeBaseline(monthlySurplus, hourlySurplus) {
-    baseline = { values: currentValues(), surplus: monthlySurplus, hourly: hourlySurplus };
+  function writeBaseline(monthlySurplus, hourlySurplus, savingsMonthly) {
+    baseline = { values: currentValues(), surplus: monthlySurplus, hourly: hourlySurplus, savings: savingsMonthly };
     try { localStorage.setItem(BASE_KEY, JSON.stringify(baseline)); } catch (e) {}
   }
 
@@ -1160,7 +1191,7 @@
   }
 
   function updateCompare(monthlySurplus, hourlySurplus, cost) {
-    if (!baseline) { writeBaseline(monthlySurplus, hourlySurplus); }
+    if (!baseline) { writeBaseline(monthlySurplus, hourlySurplus, lastSavings); }
 
     if (sameAsBaseline()) {
       $("compareSurplus").textContent = "At your baseline";
@@ -1192,7 +1223,9 @@
     // With a goal locked in, the question that matters is when it's paid off.
     var found = activeGoal();
     if (found) {
-      var then = payoffDate(found.goal, baseline.surplus), soon = payoffDate(found.goal, monthlySurplus);
+      var wasSavings = baseline.savings !== undefined ? baseline.savings : lastSavings;
+      var then = payoffDate(found.goal, goalRate(found.goal, baseline.surplus, wasSavings)),
+          soon = payoffDate(found.goal, goalRate(found.goal, monthlySurplus, lastSavings));
       if (then !== null && soon !== null) {
         var days = Math.round((then - soon) / DAY_MS);
         if (days !== 0) $("compareNote").textContent += " \u00b7 goal paid off " + describeGap(days) + (days > 0 ? " sooner" : " later");
@@ -1394,8 +1427,9 @@
     $("statRawHours").textContent = rawHourly > 0 ? num1.format(cost / rawHourly) + " h" : "—";
 
     lastSurplus = disposable / 12; lastHourly = dispHourly;
+    lastSavings = val("ex-savings") * parseFloat($("cad-savings").value) / 12;
     updateCompare(lastSurplus, lastHourly, cost);
-    renderGoal(lastSurplus);
+    renderGoal(lastSurplus, lastSavings);
 
     var hero = $("hero"), notice = $("notice");
 
@@ -1517,10 +1551,22 @@
       name: $("itemName").value.trim() || "Unnamed goal",
       cost: val("itemCost"),
       lockedOn: d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()),
+      funding: $("goalFunding").value,
       carriedIn: 0,
       months: []
     });
     recalculate();
+  });
+
+  // Changing the funding source re-aims a goal that's already running.
+  $("goalFunding").addEventListener("change", function () {
+    var found = activeGoal();
+    if (found && !found.shared) {
+      found.goal.funding = this.value;
+      writeLocalGoal(found.goal);
+    }
+    recalculate();
+    save();
   });
 
   // Two clicks to unlock, so a stray tap can't wipe a goal in progress.
@@ -1541,7 +1587,7 @@
   });
 
   $("setBaseline").addEventListener("click", function () {
-    writeBaseline(lastSurplus, lastHourly);
+    writeBaseline(lastSurplus, lastHourly, lastSavings);
     recalculate();
   });
 
