@@ -500,12 +500,18 @@
               <label for="employmentType">How you&rsquo;re paid</label>
               <select id="employmentType">
                 <option value="w2">W-2 employee &mdash; tax withheld</option>
-                <option value="1099" selected>1099 contractor &mdash; nothing withheld</option>
+                <option value="1099">1099 contractor &mdash; nothing withheld</option>
+                <option value="both" selected>Both &mdash; salary plus self-employment</option>
               </select>
             </div>
             <div class="field">
               <label for="grossIncome" id="grossLabel">Annual gross pay ($)</label>
-              <input type="number" id="grossIncome" value="91500" min="0" max="100000000" step="1000" inputmode="decimal">
+              <input type="number" id="grossIncome" value="75000" min="0" max="100000000" step="1000" inputmode="decimal">
+            </div>
+            <div class="field" id="seField" hidden>
+              <label for="seIncome">Self-employment revenue ($/yr)</label>
+              <input type="number" id="seIncome" value="12954" min="0" max="100000000" step="500" inputmode="decimal">
+              <span class="hint">Contract income paid outside your salary. Still owes self-employment tax, and still needs quarterly estimates.</span>
             </div>
             <div class="field" id="bizField" hidden>
               <label for="bizExpenses">Deductible business expenses ($/yr)</label>
@@ -839,7 +845,8 @@
   <footer>
     <p><b>How goals work.</b> Lock in one purchase at a time and every dollar of surplus goes toward it, the way a strategy game researches one technology at a time. The solid part of the bar is money confirmed from real bank statements at the end of each month; the striped part is the estimate for the time since. Change any figure and the payoff date moves with it. Anything else you price waits in line until the goal is paid off, and whatever overshoots carries into the next one.</p>
     <p><b>How the estimate is built.</b> Federal tax uses the 2026 IRS brackets and standard deduction for your filing status; pre-tax payroll deductions reduce federal and state taxable income but not payroll tax. FICA is 6.2% Social Security on the first $184,500 of wages plus 1.45% Medicare on all wages, with the extra 0.9% surtax above the threshold for your status. State tax is applied as the flat rate you enter.</p>
-    <p><b>If you&rsquo;re a 1099 contractor.</b> Self-employment tax is 15.3% on 92.35% of net profit &mdash; both halves of Social Security and Medicare, because there is no employer paying the other one &mdash; with the Social Security half capped at $184,500 and the extra 0.9% Medicare surtax above the threshold for your status. Half of that tax is deducted before income tax, and the 20% qualified business income deduction is applied when claimed. The result is money you owe but nobody collects for you, so the tool treats it as already spent from the day you invoice it.</p>
+    <p><b>Salary and self-employment together.</b> When both run at once, payroll tax is withheld on the wages while the contract income still owes both halves itself, and the Social Security base is shared &mdash; wages fill it first. The health premium stays deductible, but only up to what the self-employment side earns; anything above that still leaves your pocket without cutting tax. The reserve figure then covers only what the contract income owes, since the salary is withheld for you.</p>
+    <p><b>If you<p><b>If you&rsquo;re a 1099 contractor.</b>rsquo;re a 1099 contractor.</b> Self-employment tax is 15.3% on 92.35% of net profit &mdash; both halves of Social Security and Medicare, because there is no employer paying the other one &mdash; with the Social Security half capped at $184,500 and the extra 0.9% Medicare surtax above the threshold for your status. Half of that tax is deducted before income tax, and the 20% qualified business income deduction is applied when claimed. The result is money you owe but nobody collects for you, so the tool treats it as already spent from the day you invoice it.</p>
     <p>Two limits worth knowing: the QBI deduction here is modelled below the phase-in threshold, where it is a clean 20%, and is warned about above it, where W-2 wage limits and specified-service rules can cut or eliminate it; and state estimated tax is folded into the same reserve figure at the flat rate you enter. A CPA will beat this on both.</p>
     <p><b>Reading the hours column.</b> Every line in the ledger is priced against your gross hourly rate, so the hours are additive: tax, pre-tax deductions, fixed obligations and what&rsquo;s left add back up to the hours you actually work. Tax rows are calculated from your earnings, never entered &mdash; they are already out of your pay before the fixed obligations are counted, so they are shown separately rather than added to that subtotal.</p>
     <p><b>What &ldquo;surplus&rdquo; means here.</b> Take-home pay minus every fixed obligation above, including the savings you treat as non-negotiable, spread across every hour the job costs you &mdash; paid or not. That is why the hourly surplus rate is so much lower than your wage, and why a small purchase can cost a startling number of hours.</p>
@@ -876,11 +883,11 @@
   var QBI_RATE = .20;
   var TAX_YEAR = 2026;
   var ESTIMATED_DUE = "April 15, June 15, September 15, and January 15";
-  var STORE_KEY = "price-in-hours/v8";
+  var STORE_KEY = "price-in-hours/v9";
 
   var EXPENSES = ["housing","utilities","food","transport","insurance","health","debt","care","subs","savings","other"];
   var PROFILE_FIELDS = ["employmentType","grossIncome","bizExpenses","filingStatus","stateRate","pretax",
-                        "qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost","itemName","goalFunding"];
+                        "seIncome","qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost","itemName","goalFunding"];
 
   // Pricing a purchase isn't a change to the budget, so these never count
   // against the what-if baseline or get restored by undo.
@@ -1237,7 +1244,13 @@
 
   /* --- the calculation -------------------------------------------------- */
   function recalculate() {
-    var gross     = val("grossIncome");
+    // Three arrangements: wages only, self-employment only, or both at once.
+    var mode = $("employmentType").value;
+    var selfEmployed = (mode === "1099" || mode === "both");
+    var wages     = (mode === "1099") ? 0 : val("grossIncome");
+    var seRevenue = (mode === "w2")   ? 0 : (mode === "both" ? val("seIncome") : val("grossIncome"));
+    var gross     = wages + seRevenue;
+
     var stateRate = val("stateRate") / 100;
     var pretax    = Math.min(gross, val("pretax"));
     var paidHours = val("weeklyHours");
@@ -1245,46 +1258,56 @@
     var unpaid    = val("unpaidHours");
     var cost      = val("itemCost");
     var profile   = FILING[$("filingStatus").value] || FILING.single;
-    var selfEmployed = $("employmentType").value === "1099";
-    var bizExpenses  = selfEmployed ? Math.min(gross, val("bizExpenses")) : 0;
+    // Work costs are paid whether or not there's self-employment income to
+    // deduct them against; only the deductible share is capped by revenue.
+    var bizPaid = selfEmployed ? val("bizExpenses") : 0;
+    var bizExpenses = Math.min(seRevenue, bizPaid);
 
-    /* --- payroll / self-employment tax --- */
-    var earned = gross - bizExpenses;   // wages, or net business profit
-    var fica, halfSE;
+    /* --- payroll and self-employment tax ---------------------------------
+       Wages and self-employment income can run side by side, so both are
+       computed from the same pair of figures. In pure W-2 mode seRevenue is
+       zero; in pure contractor mode wages are. The Social Security base is
+       shared: wages fill it first and only what's left is available to the
+       self-employment half. */
+    var netProfit = Math.max(0, seRevenue - bizExpenses);
+    var seBase = netProfit * SE_NET_FACTOR;
 
-    if (selfEmployed) {
-      // A contractor pays both halves on 92.35% of net profit, and deducts
-      // half of the 15.3% portion (not the 0.9% surtax) from income tax.
-      var seBase = Math.max(0, earned) * SE_NET_FACTOR;
-      var seSocial = Math.min(seBase, SS_WAGE_BASE) * SE_SS_RATE;
-      var seMedicare = seBase * SE_MED_RATE;
-      var seSurtax = Math.max(0, seBase - profile.medicareSurtaxFrom) * MEDICARE_SURTAX;
-      fica = seSocial + seMedicare + seSurtax;
-      halfSE = (seSocial + seMedicare) / 2;
-    } else {
-      fica = Math.min(gross, SS_WAGE_BASE) * SS_RATE
-           + gross * MEDICARE_RATE
-           + Math.max(0, gross - profile.medicareSurtaxFrom) * MEDICARE_SURTAX;
-      halfSE = 0;
-    }
+    var wageFica = Math.min(wages, SS_WAGE_BASE) * SS_RATE + wages * MEDICARE_RATE;
+
+    var ssRoomLeft = Math.max(0, SS_WAGE_BASE - wages);
+    var seSocial   = Math.min(seBase, ssRoomLeft) * SE_SS_RATE;
+    var seMedicare = seBase * SE_MED_RATE;
+    var seTax      = seSocial + seMedicare;
+    var halfSE     = seTax / 2;          // the 0.9% surtax is never deductible
+
+    // The extra Medicare tax is assessed once, on wages and SE earnings together.
+    var surtax = Math.max(0, wages + seBase - profile.medicareSurtaxFrom) * MEDICARE_SURTAX;
+    var fica = wageFica + seTax + surtax;
 
     /* --- federal income tax --- */
-    var afterAdjustments = Math.max(0, earned - halfSE - pretax);
+    // Self-employed health insurance is deductible only against self-employment
+    // earnings, and only up to them. Anything over that still leaves your
+    // pocket, it just stops reducing tax.
+    var seEarned = Math.max(0, netProfit - halfSE);
+    var deductiblePretax = selfEmployed ? Math.min(pretax, seEarned) : pretax;
+
+    var afterAdjustments = Math.max(0, wages + netProfit - halfSE - deductiblePretax);
     var preQbiTaxable = Math.max(0, afterAdjustments - profile.deduction);
 
     // Section 199A: 20% of business income, capped at 20% of taxable income.
     // Modelled below the phase-in threshold only; a warning fires above it.
     var qbiClaimed = selfEmployed && $("qbiEnabled").checked;
+    var qbiBase = Math.max(0, seEarned - deductiblePretax);
     var qbiDeduction = qbiClaimed
-      ? QBI_RATE * Math.min(afterAdjustments, preQbiTaxable)
+      ? QBI_RATE * Math.min(qbiBase, preQbiTaxable)
       : 0;
 
     var taxable = Math.max(0, preQbiTaxable - qbiDeduction);
     var fedTax  = federalTax(taxable, profile.brackets);
 
-    var stateTax = Math.max(0, earned - pretax) * stateRate;
+    var stateTax = Math.max(0, wages + netProfit - deductiblePretax) * stateRate;
     var totalTax = fedTax + fica + stateTax;
-    var net      = gross - bizExpenses - pretax - totalTax;
+    var net      = gross - bizPaid - pretax - totalTax;
 
     /* time */
     var workweekHours  = paidHours + unpaid;
@@ -1302,38 +1325,46 @@
     };
 
     /* --- mode-dependent copy --- */
+    var mixed = (mode === "both");
+    $("seField").hidden  = !mixed;
     $("bizField").hidden = !selfEmployed;
     $("qbiField").hidden = !selfEmployed;
     $("bizRow").hidden   = !selfEmployed;
     $("reserve").hidden  = !selfEmployed;
 
-    $("grossLabel").textContent = selfEmployed
-      ? "Annual revenue, before expenses ($)"
-      : "Annual gross pay ($)";
+    $("grossLabel").textContent = mixed
+      ? "Annual salary ($)"
+      : selfEmployed ? "Annual revenue, before expenses ($)" : "Annual gross pay ($)";
     $("pretaxLabel").textContent = selfEmployed
       ? "Retirement & self-employed health ($/yr)"
       : "Pre-tax payroll deductions ($/yr)";
     $("pretaxHint").textContent = selfEmployed
-      ? "SEP or solo 401(k) contributions and your own health premium — deductions that lower income tax but not self-employment tax."
+      ? "Retirement contributions and your own health premium. The premium is deductible only up to your self-employment earnings — anything over that still leaves your pocket, it just stops cutting tax."
       : "401(k), HSA, and any health premium taken out of your paycheck. Don’t enter those again below.";
     $("pretaxRowName").textContent = selfEmployed ? "Retirement & health premium" : "Pre-tax deductions";
     $("healthHint").textContent = selfEmployed
       ? "Copays, prescriptions, dental, vision. Premiums belong in the deduction field above, not here."
       : "Copays, prescriptions, dental, vision — plus any premium you pay yourself rather than through payroll.";
-    $("withheldHead").textContent = selfEmployed
-      ? "Owed but never withheld — calculated, not entered"
-      : "Withheld before you see it — calculated, not entered";
-    $("ficaName").textContent = selfEmployed ? "Self-employment tax" : "Social Security & Medicare";
-    $("ficaHint").textContent = selfEmployed
-      ? "15.3% on 92.35% of net profit — both halves, since there is no employer"
-      : "6.2% to the wage base, plus 1.45% on everything";
+    $("withheldHead").textContent = mixed
+      ? "Withheld on salary, owed on the rest — calculated, not entered"
+      : selfEmployed
+        ? "Owed but never withheld — calculated, not entered"
+        : "Withheld before you see it — calculated, not entered";
+    $("ficaName").textContent = mixed
+      ? "Payroll + self-employment tax"
+      : selfEmployed ? "Self-employment tax" : "Social Security & Medicare";
+    $("ficaHint").textContent = mixed
+      ? "7.65% withheld on salary, plus both halves on the contract income"
+      : selfEmployed
+        ? "15.3% on 92.35% of net profit — both halves, since there is no employer"
+        : "6.2% to the wage base, plus 1.45% on everything";
     $("fedHint").textContent = selfEmployed
       ? (qbiClaimed ? "2026 brackets, after the standard and 20% QBI deductions" : "2026 brackets after the standard deduction")
       : "2026 brackets after the standard deduction";
 
     /* withheld before it reaches you — displayed, never summed into fixed */
-    $("rowBizLine").textContent = usd0.format(bizExpenses / 12);
-    $("hrs-biz").textContent    = hoursFor(bizExpenses);
+    $("rowBizLine").textContent = usd0.format(bizPaid / 12);
+    $("hrs-biz").textContent    = hoursFor(bizPaid);
     $("rowFedTax").textContent    = usd0.format(fedTax / 12);
     $("hrs-fedtax").textContent   = hoursFor(fedTax);
     $("rowFicaTax").textContent   = usd0.format(fica / 12);
@@ -1356,7 +1387,7 @@
     var disposable = net - fixedAnnual;
     var dispHourly = committedHours > 0 ? disposable / committedHours : 0;
 
-    var spokenFor = totalTax + pretax + bizExpenses + fixedAnnual;
+    var spokenFor = totalTax + pretax + bizPaid + fixedAnnual;
     $("committedTotal").textContent = usd0.format(spokenFor / 12);
     $("hrs-committed").textContent  = hoursFor(spokenFor);
     $("leftoverTotal").textContent  = usd0.format(disposable / 12);
@@ -1372,7 +1403,7 @@
 
     /* year split, as shares of gross */
     var share = function (part) { return gross > 0 ? Math.max(0, part) / gross : 0; };
-    var offTop = pretax + bizExpenses;
+    var offTop = pretax + bizPaid;
     var sTax   = share(totalTax);
     var sPre   = share(offTop);
     var sFixed = share(Math.min(fixedAnnual, Math.max(0, net)));
@@ -1383,8 +1414,9 @@
     $("segFixed").style.width = (sFixed * 100) + "%";
     $("segFree").style.width  = (sFree * 100)  + "%";
 
-    $("grossEcho").textContent = usd0.format(gross) + (selfEmployed ? " revenue · " : " gross · ")
-                               + usd0.format(net) + " spendable";
+    $("grossEcho").textContent = usd0.format(gross)
+      + (mixed ? " total income · " : selfEmployed ? " revenue · " : " gross · ")
+      + usd0.format(net) + " spendable";
     $("legPreLabel").textContent = selfEmployed ? "Business costs & deductions" : "Pre-tax deductions";
     $("legTax").textContent    = usd0.format(totalTax) + " · " + pct1.format(sTax);
     $("legPre").textContent    = usd0.format(offTop) + " · " + pct1.format(sPre);
@@ -1399,17 +1431,28 @@
 
     /* the money a contractor has to hold back, since nobody else will */
     if (selfEmployed) {
-      $("reserveMonth").textContent   = usd0.format(totalTax / 12);
-      $("reserveQuarter").textContent = usd0.format(totalTax / 4);
-      var reserveNote = "That is " + pct1.format(share(totalTax)) + " of every invoice, due in quarterly estimates on "
-        + ESTIMATED_DUE + ". Until it is moved out of your account it will look like surplus, and this tool counts it as already spent.";
+      // With a salary alongside, payroll withholding already covers the wage
+      // share. Only the self-employment slice has to be set aside by hand.
+      var seTaxableAdd = Math.max(0, netProfit - halfSE - deductiblePretax - (qbiClaimed ? qbiDeduction : 0));
+      var toReserve = mixed
+        ? seTax + surtax + seTaxableAdd * marginalRate(taxable, profile.brackets)
+        : totalTax;
+
+      $("reserveMonth").textContent   = usd0.format(toReserve / 12);
+      $("reserveQuarter").textContent = usd0.format(toReserve / 4);
+      var reserveNote = mixed
+        ? "Your salary is withheld for you; this is what the contract income owes on top, due in quarterly estimates on "
+          + ESTIMATED_DUE + ". That works out to " + pct1.format(seRevenue > 0 ? toReserve / seRevenue : 0)
+          + " of every invoice outside your paycheck."
+        : "That is " + pct1.format(share(totalTax)) + " of every invoice, due in quarterly estimates on "
+          + ESTIMATED_DUE + ". Until it is moved out of your account it will look like surplus, and this tool counts it as already spent.";
       if (qbiClaimed && afterAdjustments > profile.brackets[3][0]) {
         reserveNote += " Your income is above the QBI phase-in threshold, where the deduction gets limited by W-2 wages and business type — the figure here is likely optimistic.";
       }
       $("reserveNote").textContent = reserveNote;
     }
 
-    var committedShare = share(totalTax + pretax + bizExpenses + fixedAnnual);
+    var committedShare = share(totalTax + pretax + bizPaid + fixedAnnual);
     var date = crossoverDate(committedShare);
     $("crossover").innerHTML = date
       ? "Paid in order, this year&rsquo;s earnings clear the tax bill and every fixed obligation on <b>" + date +
