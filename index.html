@@ -508,6 +508,14 @@
               <label for="grossIncome" id="grossLabel">Annual gross pay ($)</label>
               <input type="number" id="grossIncome" value="75000" min="0" max="100000000" step="1000" inputmode="decimal">
             </div>
+            <div class="field" id="bonusField" hidden>
+              <label for="bonusLow">Annual bonus &mdash; expected / good year ($)</label>
+              <div class="pair">
+                <input type="number" id="bonusLow" value="15777" min="0" max="10000000" step="100" inputmode="decimal" aria-label="Annual bonus, expected">
+                <input type="number" id="bonusHigh" value="22744" min="0" max="10000000" step="100" inputmode="decimal" aria-label="Annual bonus, good year">
+              </div>
+              <span class="hint">Everything is calculated on the expected figure. The good-year figure shows alongside it as a range.</span>
+            </div>
             <div class="field" id="seField" hidden>
               <label for="seIncome">Self-employment revenue ($/yr)</label>
               <input type="number" id="seIncome" value="12954" min="0" max="100000000" step="500" inputmode="decimal">
@@ -883,11 +891,11 @@
   var QBI_RATE = .20;
   var TAX_YEAR = 2026;
   var ESTIMATED_DUE = "April 15, June 15, September 15, and January 15";
-  var STORE_KEY = "price-in-hours/v9";
+  var STORE_KEY = "price-in-hours/v10";
 
   var EXPENSES = ["housing","utilities","food","transport","insurance","health","debt","care","subs","savings","other"];
   var PROFILE_FIELDS = ["employmentType","grossIncome","bizExpenses","filingStatus","stateRate","pretax",
-                        "seIncome","qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost","itemName","goalFunding"];
+                        "bonusLow","bonusHigh","seIncome","qbiEnabled","weeklyHours","weeksPerYear","unpaidHours","itemCost","itemName","goalFunding"];
 
   // Pricing a purchase isn't a change to the budget, so these never count
   // against the what-if baseline or get restored by undo.
@@ -1242,12 +1250,67 @@
     }
   }
 
+  /* --- the tax model ---------------------------------------------------
+     Wages and self-employment income are computed together so the two can
+     run side by side. Kept separate from the rendering because it is run
+     more than once: a bonus is a range, not a figure, so the page shows
+     what an expected year and a good year each produce. */
+  function taxModel(wages, seRevenue, ctx) {
+    var bizExpenses = Math.min(seRevenue, ctx.bizPaid);
+    var netProfit = Math.max(0, seRevenue - bizExpenses);
+    var seBase = netProfit * SE_NET_FACTOR;
+
+    var wageFica = Math.min(wages, SS_WAGE_BASE) * SS_RATE + wages * MEDICARE_RATE;
+
+    // The Social Security base is shared: wages fill it first.
+    var ssRoomLeft = Math.max(0, SS_WAGE_BASE - wages);
+    var seSocial   = Math.min(seBase, ssRoomLeft) * SE_SS_RATE;
+    var seMedicare = seBase * SE_MED_RATE;
+    var seTax      = seSocial + seMedicare;
+    var halfSE     = seTax / 2;          // the 0.9% surtax is never deductible
+
+    // The extra Medicare tax is assessed once, across wages and SE earnings.
+    var surtax = Math.max(0, wages + seBase - ctx.profile.medicareSurtaxFrom) * MEDICARE_SURTAX;
+    var fica = wageFica + seTax + surtax;
+
+    // Self-employed health insurance is deductible only against self-employment
+    // earnings, and only up to them. Anything over still leaves your pocket.
+    var seEarned = Math.max(0, netProfit - halfSE);
+    var deductiblePretax = ctx.selfEmployed ? Math.min(ctx.pretax, seEarned) : ctx.pretax;
+
+    var afterAdjustments = Math.max(0, wages + netProfit - halfSE - deductiblePretax);
+    var preQbiTaxable = Math.max(0, afterAdjustments - ctx.profile.deduction);
+
+    // Section 199A: 20% of business income, capped at 20% of taxable income.
+    var qbiBase = Math.max(0, seEarned - deductiblePretax);
+    var qbiDeduction = ctx.qbiClaimed ? QBI_RATE * Math.min(qbiBase, preQbiTaxable) : 0;
+
+    var taxable = Math.max(0, preQbiTaxable - qbiDeduction);
+    var fedTax  = federalTax(taxable, ctx.profile.brackets);
+    var stateTax = Math.max(0, wages + netProfit - deductiblePretax) * ctx.stateRate;
+    var totalTax = fedTax + fica + stateTax;
+
+    return {
+      gross: wages + seRevenue, bizExpenses: bizExpenses, netProfit: netProfit,
+      seTax: seTax, halfSE: halfSE, surtax: surtax, fica: fica,
+      deductiblePretax: deductiblePretax, afterAdjustments: afterAdjustments,
+      qbiDeduction: qbiDeduction, taxable: taxable, fedTax: fedTax,
+      stateTax: stateTax, totalTax: totalTax,
+      net: wages + seRevenue - ctx.bizPaid - ctx.pretax - totalTax
+    };
+  }
+
   /* --- the calculation -------------------------------------------------- */
   function recalculate() {
     // Three arrangements: wages only, self-employment only, or both at once.
     var mode = $("employmentType").value;
     var selfEmployed = (mode === "1099" || mode === "both");
-    var wages     = (mode === "1099") ? 0 : val("grossIncome");
+    // A bonus is a range rather than a figure, so the page runs on the
+    // expected one and reports the good year alongside it.
+    var bonusLow  = (mode === "1099") ? 0 : val("bonusLow");
+    var bonusHigh = (mode === "1099") ? 0 : Math.max(bonusLow, val("bonusHigh"));
+
+    var wages     = (mode === "1099") ? 0 : val("grossIncome") + bonusLow;
     var seRevenue = (mode === "w2")   ? 0 : (mode === "both" ? val("seIncome") : val("grossIncome"));
     var gross     = wages + seRevenue;
 
@@ -1263,51 +1326,21 @@
     var bizPaid = selfEmployed ? val("bizExpenses") : 0;
     var bizExpenses = Math.min(seRevenue, bizPaid);
 
-    /* --- payroll and self-employment tax ---------------------------------
-       Wages and self-employment income can run side by side, so both are
-       computed from the same pair of figures. In pure W-2 mode seRevenue is
-       zero; in pure contractor mode wages are. The Social Security base is
-       shared: wages fill it first and only what's left is available to the
-       self-employment half. */
-    var netProfit = Math.max(0, seRevenue - bizExpenses);
-    var seBase = netProfit * SE_NET_FACTOR;
-
-    var wageFica = Math.min(wages, SS_WAGE_BASE) * SS_RATE + wages * MEDICARE_RATE;
-
-    var ssRoomLeft = Math.max(0, SS_WAGE_BASE - wages);
-    var seSocial   = Math.min(seBase, ssRoomLeft) * SE_SS_RATE;
-    var seMedicare = seBase * SE_MED_RATE;
-    var seTax      = seSocial + seMedicare;
-    var halfSE     = seTax / 2;          // the 0.9% surtax is never deductible
-
-    // The extra Medicare tax is assessed once, on wages and SE earnings together.
-    var surtax = Math.max(0, wages + seBase - profile.medicareSurtaxFrom) * MEDICARE_SURTAX;
-    var fica = wageFica + seTax + surtax;
-
-    /* --- federal income tax --- */
-    // Self-employed health insurance is deductible only against self-employment
-    // earnings, and only up to them. Anything over that still leaves your
-    // pocket, it just stops reducing tax.
-    var seEarned = Math.max(0, netProfit - halfSE);
-    var deductiblePretax = selfEmployed ? Math.min(pretax, seEarned) : pretax;
-
-    var afterAdjustments = Math.max(0, wages + netProfit - halfSE - deductiblePretax);
-    var preQbiTaxable = Math.max(0, afterAdjustments - profile.deduction);
-
-    // Section 199A: 20% of business income, capped at 20% of taxable income.
-    // Modelled below the phase-in threshold only; a warning fires above it.
+    /* --- tax, run for the expected year and again for a good one --- */
     var qbiClaimed = selfEmployed && $("qbiEnabled").checked;
-    var qbiBase = Math.max(0, seEarned - deductiblePretax);
-    var qbiDeduction = qbiClaimed
-      ? QBI_RATE * Math.min(qbiBase, preQbiTaxable)
-      : 0;
+    var ctx = { bizPaid: bizPaid, pretax: pretax, stateRate: stateRate,
+                profile: profile, selfEmployed: selfEmployed, qbiClaimed: qbiClaimed };
 
-    var taxable = Math.max(0, preQbiTaxable - qbiDeduction);
-    var fedTax  = federalTax(taxable, profile.brackets);
+    var m = taxModel(wages, seRevenue, ctx);
+    var mHigh = (bonusHigh > bonusLow)
+      ? taxModel(wages + (bonusHigh - bonusLow), seRevenue, ctx)
+      : null;
 
-    var stateTax = Math.max(0, wages + netProfit - deductiblePretax) * stateRate;
-    var totalTax = fedTax + fica + stateTax;
-    var net      = gross - bizPaid - pretax - totalTax;
+    var bizExpenses = m.bizExpenses, netProfit = m.netProfit, seTax = m.seTax;
+    var halfSE = m.halfSE, surtax = m.surtax, fica = m.fica;
+    var deductiblePretax = m.deductiblePretax, afterAdjustments = m.afterAdjustments;
+    var qbiDeduction = m.qbiDeduction, taxable = m.taxable, fedTax = m.fedTax;
+    var stateTax = m.stateTax, totalTax = m.totalTax, net = m.net;
 
     /* time */
     var workweekHours  = paidHours + unpaid;
@@ -1327,6 +1360,7 @@
     /* --- mode-dependent copy --- */
     var mixed = (mode === "both");
     $("seField").hidden  = !mixed;
+    $("bonusField").hidden = (mode === "1099");
     $("bizField").hidden = !selfEmployed;
     $("qbiField").hidden = !selfEmployed;
     $("bizRow").hidden   = !selfEmployed;
@@ -1386,6 +1420,11 @@
 
     var disposable = net - fixedAnnual;
     var dispHourly = committedHours > 0 ? disposable / committedHours : 0;
+
+    // The same figures on a good bonus year, for the range readouts.
+    var dispHigh = mHigh ? mHigh.net - fixedAnnual : null;
+    var dispHourlyHigh = (dispHigh !== null && committedHours > 0) ? dispHigh / committedHours : null;
+    var hasRange = dispHigh !== null && dispHigh > disposable + 1;
 
     var spokenFor = totalTax + pretax + bizPaid + fixedAnnual;
     $("committedTotal").textContent = usd0.format(spokenFor / 12);
@@ -1459,9 +1498,14 @@
         "</b>. Only what you earn after that buys anything you actually chose."
       : "Tax and fixed obligations consume the whole year&rsquo;s pay. There is no point in the year where the money starts being yours.";
 
-    $("dispMonth").textContent = usd0.format(disposable / 12);
-    $("dispWeek").textContent  = usd0.format(disposable / 52);
-    $("dispHour").textContent  = committedHours > 0 ? usd2.format(dispHourly) : "—";
+    var EN_DASH = " – ";
+    $("dispMonth").textContent = usd0.format(disposable / 12)
+      + (hasRange ? EN_DASH + usd0.format(dispHigh / 12) : "");
+    $("dispWeek").textContent  = usd0.format(disposable / 52)
+      + (hasRange ? EN_DASH + usd0.format(dispHigh / 52) : "");
+    $("dispHour").textContent  = committedHours > 0
+      ? usd2.format(dispHourly) + (hasRange ? EN_DASH + usd2.format(dispHourlyHigh) : "")
+      : "—";
     $("taxHoursYear").textContent = grossHourly > 0 ? num0.format(totalTax / grossHourly) : "—";
     $("statHours").textContent = num0.format(committedHours);
     $("costEcho").textContent  = usd2.format(cost);
@@ -1508,10 +1552,16 @@
     hero.setAttribute("aria-label", fig.value + " " + fig.unit + " of surplus work");
 
     var days = inWorkdays(surplusHours, workdayHours);
-    $("heroSub").innerHTML = "of work once tax and the bills are covered" +
+    var subText = "of work once tax and the bills are covered" +
       (days ? " — " + '<span class="figure">' + days + "</span>" : "") +
       ". Your surplus accrues at " + '<span class="figure">' + usd2.format(dispHourly) +
       "</span> for every hour the job costs you.";
+    if (hasRange && dispHourlyHigh > 0) {
+      var highFig = heroFigure(cost / dispHourlyHigh, workdayHours, workweekHours);
+      subText += " On a good bonus year, <span class=\"figure\">" + highFig.value + " " +
+        highFig.unit + "</span> at <span class=\"figure\">" + usd2.format(dispHourlyHigh) + "</span> an hour.";
+    }
+    $("heroSub").innerHTML = subText;
 
     $("statWeeks").textContent = workweekHours > 0
       ? num1.format(surplusHours / workweekHours) + " wk"
