@@ -985,7 +985,14 @@
      in. The bar fills solid from confirmed money and striped from the
      estimate for the time since the last confirmed month. */
   var COMMITTED_GOALS = {
-    active: null,
+    active: {
+      name: "LegoLand Trip",
+      cost: 2500,
+      lockedOn: "2026-10-14",
+      funding: "surplus",
+      carriedIn: 0,
+      months: []
+    },
     completed: []
   };
 
@@ -1067,7 +1074,7 @@
 
   function describeGap(days) { return describeSpan(Math.abs(days) * DAY_MS); }
 
-  function renderGoal(monthlySurplus, savingsMonthly) {
+  function renderGoal(monthlySurplus, savingsMonthly, highSurplus) {
     var found = activeGoal(), lockBtn = $("lockGoal"), lockNote = $("lockNote"), queue = $("queueLine");
     queue.hidden = true;
 
@@ -1121,6 +1128,13 @@
       eta.innerHTML = "<b>Should be full by now.</b> This month’s statement will confirm it.";
     } else {
       eta.innerHTML = "Paid off around <b>" + dateFmt.format(done) + "</b> — " + describeSpan(done - now) + " from today";
+      // With a bonus range behind the surplus, the date is a range too.
+      if (highSurplus && highSurplus > monthlySurplus) {
+        var soonest = payoffDate(goal, goalRate(goal, highSurplus, savingsMonthly));
+        if (soonest !== null && soonest < done - DAY_MS) {
+          eta.innerHTML += ", or <b>" + dateFmt.format(soonest) + "</b> on a good bonus year";
+        }
+      }
     }
 
     // What the model projected each month beside what really came in.
@@ -1516,7 +1530,7 @@
     lastSurplus = disposable / 12; lastHourly = dispHourly;
     lastSavings = val("ex-savings") * parseFloat($("cad-savings").value) / 12;
     updateCompare(lastSurplus, lastHourly, cost);
-    renderGoal(lastSurplus, lastSavings);
+    renderGoal(lastSurplus, lastSavings, hasRange ? dispHigh / 12 : null);
 
     var hero = $("hero"), notice = $("notice");
 
