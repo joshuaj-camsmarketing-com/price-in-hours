@@ -390,6 +390,31 @@
   }
   .eta.stalled b { color: var(--alert); }
 
+  /* queue rows */
+  #queueList { display: grid; gap: 18px; }
+  .qrow { display: grid; gap: 7px; }
+  .qrow.qdone { opacity: .62; }
+  .qrow-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .qpos {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 600;
+    color: var(--muted); min-width: 1.2em;
+  }
+  .qname { font-size: 15px; font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+  .qb {
+    font-family: "IBM Plex Mono", monospace; font-size: 9.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 3px; padding: 2px 6px;
+  }
+  .qb-on { color: var(--on-brass); background: var(--brass-fill); border-color: var(--brass-fill); }
+  .qb-local { font-style: normal; opacity: .75; }
+  .qcost {
+    margin-left: auto; font-family: "IBM Plex Mono", monospace;
+    font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600; color: var(--ink-2);
+  }
+  .qstatus { margin: 0; font-size: 12.5px; color: var(--muted); }
+  .qstatus-done { color: var(--accent, var(--brass)); }
+  .qstatus-stalled { color: var(--alert); }
+
   .goal-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 14px; }
   .goal-stats .v {
     display: block; margin-top: 3px;
@@ -709,42 +734,29 @@
     </div>
   </details>
 
-  <!-- ============ current goal ============ -->
+  <!-- ============ goal queue ============ -->
   <section class="panel pad goal" aria-labelledby="goalHeading">
     <div class="goal-head">
       <div class="goal-title">
-        <span class="micro" id="goalHeading">Current goal</span>
-        <p class="goal-name" id="goalName">Nothing locked in</p>
-        <span class="goal-source" id="goalSource"></span>
+        <span class="micro" id="goalHeading">Goal queue</span>
+        <p class="goal-name" id="queueHeadline">Nothing queued</p>
+        <span class="goal-source" id="queueRates"></span>
       </div>
-      <span class="goal-cost" id="goalCost"></span>
     </div>
 
-    <p class="goal-empty" id="goalEmpty">Price something below and lock it in. From then on every dollar of surplus goes toward it, and nothing else fun gets bought until the bar is full.</p>
+    <p class="goal-empty" id="goalEmpty">Price something below, choose which bucket pays for it, and add it to the queue. Each bucket funds the first thing in its own line and nothing behind it moves until that one is paid off.</p>
 
     <div class="goal-body" id="goalBody" hidden>
-      <div class="research" id="research" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-labelledby="goalName">
-        <div class="research-confirmed" id="researchConfirmed"></div>
-        <div class="research-projected" id="researchProjected"></div>
-      </div>
-
-      <p class="eta" id="goalEta" aria-live="polite">&mdash;</p>
-
-      <div class="goal-stats">
-        <div><span class="micro">Confirmed</span><span class="v" id="goalConfirmed">&mdash;</span></div>
-        <div><span class="micro">Estimated since</span><span class="v" id="goalProjected">&mdash;</span></div>
-        <div><span class="micro">Still to go</span><span class="v" id="goalRemaining">&mdash;</span></div>
-        <div><span class="micro">Going in / mo</span><span class="v" id="goalRate">&mdash;</span></div>
-      </div>
+      <div id="queueList" aria-live="polite"></div>
 
       <div class="scroller" id="goalLogWrap" hidden>
         <table class="goal-log">
-          <thead><tr><th>Month</th><th class="n">Projected</th><th class="n">Actual</th><th class="n">Difference</th></tr></thead>
+          <thead><tr><th>Month</th><th class="n">Surplus in</th><th class="n">Savings in</th><th class="n">Projected</th></tr></thead>
           <tbody id="goalLog"></tbody>
         </table>
       </div>
 
-      <div><button type="button" class="linkbtn" id="unlockGoal">Unlock</button></div>
+      <div><button type="button" class="linkbtn" id="unlockGoal" hidden>Clear my added goals</button></div>
     </div>
   </section>
 
@@ -891,7 +903,7 @@
   var QBI_RATE = .20;
   var TAX_YEAR = 2026;
   var ESTIMATED_DUE = "April 15, June 15, September 15, and January 15";
-  var STORE_KEY = "price-in-hours/v11";
+  var STORE_KEY = "price-in-hours/v12";
 
   var EXPENSES = ["housing","utilities","food","transport","insurance","health","debt","care","subs","savings","other"];
   var PROFILE_FIELDS = ["employmentType","grossIncome","bizExpenses","filingStatus","stateRate","pretax",
@@ -985,38 +997,45 @@
      in. The bar fills solid from confirmed money and striped from the
      estimate for the time since the last confirmed month. */
   var COMMITTED_GOALS = {
-    active: {
-      name: "LegoLand Trip",
-      cost: 2500,
-      lockedOn: "2026-10-14",
-      funding: "surplus",
-      carriedIn: 0,
-      months: []
-    },
+    asOf: "2026-10-14",          // confirmed money runs up to this date
+    queue: [
+      { name: "LegoLand Trip", cost: 2500, buckets: ["surplus"], funded: 0 }
+    ],
+    months: [],                  // what actually went into each bucket, by month
     completed: []
   };
 
-  var GOAL_KEY = "price-in-hours/goal/v1";
+  var GOAL_KEY = "price-in-hours/queue/v1";
   var DAY_MS = 86400000, DAYS_PER_MONTH = 30.4375;
   var dateFmt  = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
   var monthFmt = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" });
 
-  function readLocalGoal() {
-    try { var raw = localStorage.getItem(GOAL_KEY); return raw ? JSON.parse(raw) : null; }
-    catch (e) { return null; }
-  }
+  var BUCKETS = ["surplus", "savings"];
+  var BUCKET_LABEL = { surplus: "Surplus", savings: "Savings" };
 
-  function writeLocalGoal(goal) {
+  function readLocalGoals() {
     try {
-      if (goal) localStorage.setItem(GOAL_KEY, JSON.stringify(goal));
-      else localStorage.removeItem(GOAL_KEY);
-    } catch (e) { /* storage blocked: the goal lasts for this visit only */ }
+      var raw = localStorage.getItem(GOAL_KEY);
+      var parsed = raw ? JSON.parse(raw) : null;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { return []; }
   }
 
-  function activeGoal() {
-    if (COMMITTED_GOALS.active) return { goal: COMMITTED_GOALS.active, shared: true };
-    var local = readLocalGoal();
-    return local ? { goal: local, shared: false } : null;
+  function writeLocalGoals(list) {
+    try {
+      if (list && list.length) localStorage.setItem(GOAL_KEY, JSON.stringify(list));
+      else localStorage.removeItem(GOAL_KEY);
+    } catch (e) { /* storage blocked: the additions last for this visit only */ }
+  }
+
+  // The shared queue first, then anything added on this device.
+  function fullQueue() {
+    var shared = (COMMITTED_GOALS.queue || []).map(function (g) {
+      return { goal: g, shared: true };
+    });
+    return shared.concat(readLocalGoals().map(function (g) {
+      return { goal: g, shared: false };
+    }));
   }
 
   function dayFromISO(iso) {
@@ -1029,39 +1048,75 @@
     return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
   }
 
-  // Confirmed money toward a goal, and the day that confirmation runs up to.
-  function goalProgress(goal) {
-    var confirmed = +goal.carriedIn || 0, through = dayFromISO(goal.lockedOn);
-    (goal.months || []).forEach(function (m) {
-      confirmed += +m.actual || 0;
-      var p = String(m.month).split("-");
-      through = Math.max(through, Date.UTC(+p[0], +p[1], 1));   // first of the next month
+  /* --- the queue simulation -------------------------------------------
+     Each bucket runs its own line. A bucket pays the first unpaid goal
+     that draws on it, and nothing behind that goal in the same line gets
+     anything. A goal drawing on both buckets sits in both lines and
+     collects from each one separately as it reaches the front of that
+     line, so it can start filling from one while still waiting on the
+     other. When a goal fills mid-month the rest of that bucket's money
+     cascades to the next goal behind it.
+
+     Simulated a day at a time from the date confirmed money runs to,
+     which keeps the interactions honest rather than solving each goal in
+     isolation. */
+  function projectQueue(entries, rates, startMs, todayMs, maxYears) {
+    var perDay = {};
+    BUCKETS.forEach(function (b) { perDay[b] = Math.max(0, rates[b] || 0) * 12 / 365.25; });
+
+    var state = entries.map(function (e) {
+      var cost = +e.goal.cost || 0;
+      return {
+        entry: e, cost: cost,
+        funded: Math.min(Math.max(0, +e.goal.funded || 0), cost),
+        confirmed: Math.min(Math.max(0, +e.goal.funded || 0), cost),
+        atToday: null, startMs: null, doneMs: null, feeding: []
+      };
     });
-    return { confirmed: confirmed, through: through };
+    state.forEach(function (s) { if (s.funded >= s.cost && s.cost > 0) s.doneMs = startMs; });
+
+    var maxDays = Math.round((maxYears || 40) * 365.25);
+    var todayDay = Math.max(0, Math.round((todayMs - startMs) / DAY_MS));
+
+    for (var d = 0; d <= maxDays; d++) {
+      if (d === todayDay) state.forEach(function (s) { s.atToday = s.funded; });
+
+      for (var bi = 0; bi < BUCKETS.length; bi++) {
+        var b = BUCKETS[bi], left = perDay[b];
+        if (left <= 0) continue;
+        for (var i = 0; i < state.length && left > 1e-9; i++) {
+          var s = state[i];
+          if (s.funded >= s.cost || s.cost <= 0) continue;
+          if ((s.entry.goal.buckets || []).indexOf(b) < 0) continue;
+          if (d === 0 && s.feeding.indexOf(b) < 0) s.feeding.push(b);
+          if (s.startMs === null) s.startMs = startMs + d * DAY_MS;
+          var pay = Math.min(left, s.cost - s.funded);
+          s.funded += pay; left -= pay;
+          if (s.funded >= s.cost - 1e-9) s.doneMs = startMs + d * DAY_MS;
+        }
+      }
+
+      var pending = false;
+      for (var k = 0; k < state.length; k++) if (state[k].doneMs === null) { pending = true; break; }
+      if (!pending) break;
+    }
+
+    state.forEach(function (s) { if (s.atToday === null) s.atToday = s.funded; });
+    return state;
   }
 
-  // Money a goal draws each month. Saving into a bucket and then buying is
-  // a different plan from spending what's left over, and the payoff date is
-  // only right if the tool knows which one is being used.
-  var FUNDING_LABEL = {
-    surplus: "funded from surplus",
-    savings: "funded from the savings line",
-    both: "funded from savings and surplus"
-  };
-
-  function goalRate(goal, monthlySurplus, savingsMonthly) {
-    var how = goal.funding || "surplus";
-    if (how === "savings") return savingsMonthly;
-    if (how === "both") return monthlySurplus + savingsMonthly;
-    return monthlySurplus;
+  // Monthly money available to each bucket.
+  function bucketRates(monthlySurplus, savingsMonthly) {
+    return { surplus: monthlySurplus, savings: savingsMonthly };
   }
 
-  // The day the bar fills at a given monthly rate; null if it never does.
-  function payoffDate(goal, rate) {
-    var prog = goalProgress(goal), left = (+goal.cost || 0) - prog.confirmed;
-    if (left <= 0) return prog.through;
-    if (!(rate > 0)) return null;
-    return prog.through + (left / rate) * DAYS_PER_MONTH * DAY_MS;
+  // When does the first unfinished goal land? Used by the what-if strip.
+  function headPayoff(rates) {
+    var entries = fullQueue();
+    if (!entries.length) return null;
+    var st = projectQueue(entries, rates, dayFromISO(COMMITTED_GOALS.asOf), today());
+    for (var i = 0; i < st.length; i++) if (st[i].doneMs !== null && st[i].confirmed < st[i].cost) return st[i].doneMs;
+    return null;
   }
 
   function describeSpan(ms) {
@@ -1075,80 +1130,120 @@
   function describeGap(days) { return describeSpan(Math.abs(days) * DAY_MS); }
 
   function renderGoal(monthlySurplus, savingsMonthly, highSurplus) {
-    var found = activeGoal(), lockBtn = $("lockGoal"), lockNote = $("lockNote"), queue = $("queueLine");
+    var entries = fullQueue(), lockBtn = $("lockGoal"), lockNote = $("lockNote"), queue = $("queueLine");
+    var list = $("queueList");
     queue.hidden = true;
+    lockBtn.disabled = !(val("itemCost") > 0);
+    lockNote.hidden = true;
 
-    if (!found) {
-      $("goalName").textContent = "Nothing locked in";
-      $("goalCost").textContent = "";
-      $("goalSource").textContent = "";
+    if (!entries.length) {
+      $("queueHeadline").textContent = "Nothing queued";
+      $("queueRates").textContent = "";
       $("goalEmpty").hidden = false;
       $("goalBody").hidden = true;
-      lockBtn.disabled = !(val("itemCost") > 0);
-      lockNote.hidden = true;
       return;
     }
 
-    var goal = found.goal, now = today(), cost = +goal.cost || 0;
-    var rate = goalRate(goal, monthlySurplus, savingsMonthly);
-    var prog = goalProgress(goal);
-    var confirmed = Math.min(prog.confirmed, cost);
-    var sinceMonths = Math.max(0, (now - prog.through) / DAY_MS / DAYS_PER_MONTH);
-    var estimated = Math.max(0, Math.min(cost - confirmed, sinceMonths * Math.max(0, rate)));
-    var remaining = Math.max(0, cost - confirmed - estimated);
+    var now = today(), startMs = dayFromISO(COMMITTED_GOALS.asOf);
+    var rates = bucketRates(monthlySurplus, savingsMonthly);
+    var st = projectQueue(entries, rates, startMs, now);
+    var stHigh = (highSurplus && highSurplus > monthlySurplus)
+      ? projectQueue(entries, bucketRates(highSurplus, savingsMonthly), startMs, now)
+      : null;
 
     $("goalEmpty").hidden = true;
     $("goalBody").hidden = false;
-    $("goalName").textContent = goal.name;
-    $("goalCost").textContent = usd0.format(cost);
-    $("goalSource").textContent = "Locked in " + dateFmt.format(dayFromISO(goal.lockedOn)) +
-      " · " + (FUNDING_LABEL[goal.funding || "surplus"]) +
-      " · " + (found.shared ? "confirmed from bank statements" : "on this device until the next statement is recorded");
 
-    var pc = cost > 0 ? confirmed / cost * 100 : 0, pe = cost > 0 ? estimated / cost * 100 : 0;
-    $("researchConfirmed").style.width = pc + "%";
-    $("researchProjected").style.left = pc + "%";
-    $("researchProjected").style.width = pe + "%";
-    $("research").setAttribute("aria-valuenow", String(Math.round(pc + pe)));
+    var outstanding = st.filter(function (s) { return s.confirmed < s.cost; });
+    $("queueHeadline").textContent = outstanding.length
+      ? outstanding.length + (outstanding.length === 1 ? " goal queued" : " goals queued")
+      : "All goals paid off";
+    $("queueRates").textContent = "Surplus " + usd0.format(Math.max(0, monthlySurplus)) + "/mo"
+      + " \u00b7 Savings " + usd0.format(Math.max(0, savingsMonthly)) + "/mo"
+      + " \u00b7 confirmed through " + dateFmt.format(startMs);
 
-    $("goalConfirmed").textContent = usd0.format(confirmed);
-    $("goalProjected").textContent = usd0.format(estimated);
-    $("goalRemaining").textContent = usd0.format(remaining);
-    $("goalRate").textContent = usd0.format(Math.max(0, rate));
+    list.textContent = "";
+    st.forEach(function (s, idx) {
+      var g = s.entry.goal;
+      var row = document.createElement("div");
+      row.className = "qrow" + (s.doneMs !== null && s.confirmed >= s.cost ? " qdone" : "");
 
-    var eta = $("goalEta"), done = payoffDate(goal, rate);
-    eta.className = "eta";
-    if (prog.confirmed >= cost) {
-      eta.innerHTML = "<b>Paid off.</b> ";
-      eta.appendChild(document.createTextNode(usd0.format(prog.confirmed - cost) + " carries over into the next goal."));
-    } else if (done === null) {
-      eta.className = "eta stalled";
-      eta.innerHTML = "<b>Stalled.</b> Nothing is going in, so the bar never fills at these figures.";
-    } else if (done <= now) {
-      eta.innerHTML = "<b>Should be full by now.</b> This month’s statement will confirm it.";
-    } else {
-      eta.innerHTML = "Paid off around <b>" + dateFmt.format(done) + "</b> — " + describeSpan(done - now) + " from today";
-      // With a bonus range behind the surplus, the date is a range too.
-      if (highSurplus && highSurplus > monthlySurplus) {
-        var soonest = payoffDate(goal, goalRate(goal, highSurplus, savingsMonthly));
-        if (soonest !== null && soonest < done - DAY_MS) {
-          eta.innerHTML += ", or <b>" + dateFmt.format(soonest) + "</b> on a good bonus year";
-        }
+      // header: position, name, buckets, cost
+      var head = document.createElement("div");
+      head.className = "qrow-head";
+      var pos = document.createElement("span"); pos.className = "qpos"; pos.textContent = String(idx + 1);
+      var nm  = document.createElement("span"); nm.className = "qname"; nm.textContent = g.name;
+      head.appendChild(pos); head.appendChild(nm);
+      (g.buckets || []).forEach(function (b) {
+        var tag = document.createElement("span");
+        tag.className = "qb" + (s.feeding.indexOf(b) >= 0 ? " qb-on" : "");
+        tag.textContent = BUCKET_LABEL[b] || b;
+        head.appendChild(tag);
+      });
+      if (!s.entry.shared) {
+        var mine = document.createElement("span"); mine.className = "qb qb-local"; mine.textContent = "this device";
+        head.appendChild(mine);
       }
-    }
+      var cst = document.createElement("span"); cst.className = "qcost"; cst.textContent = usd0.format(s.cost);
+      head.appendChild(cst);
+      row.appendChild(head);
 
-    // What the model projected each month beside what really came in.
-    var months = goal.months || [], log = $("goalLog");
+      // bar: confirmed solid, estimate-to-today striped
+      var pc = s.cost > 0 ? s.confirmed / s.cost * 100 : 0;
+      var pe = s.cost > 0 ? Math.max(0, s.atToday - s.confirmed) / s.cost * 100 : 0;
+      var bar = document.createElement("div");
+      bar.className = "research";
+      bar.setAttribute("role", "progressbar");
+      bar.setAttribute("aria-valuemin", "0");
+      bar.setAttribute("aria-valuemax", "100");
+      bar.setAttribute("aria-valuenow", String(Math.round(pc + pe)));
+      bar.setAttribute("aria-label", g.name);
+      var c1 = document.createElement("div"); c1.className = "research-confirmed"; c1.style.width = pc + "%";
+      var c2 = document.createElement("div"); c2.className = "research-projected";
+      c2.style.left = pc + "%"; c2.style.width = pe + "%";
+      bar.appendChild(c1); bar.appendChild(c2);
+      row.appendChild(bar);
+
+      // status line
+      var status = document.createElement("p");
+      status.className = "qstatus";
+      if (s.confirmed >= s.cost && s.cost > 0) {
+        status.className += " qstatus-done";
+        status.textContent = "Paid off";
+      } else if (s.doneMs === null) {
+        status.className += " qstatus-stalled";
+        var why = (g.buckets || []).map(function (b) { return BUCKET_LABEL[b]; }).join(" or ");
+        status.textContent = "Stalled \u2014 nothing going into " + (why || "either bucket");
+      } else {
+        var bits = [];
+        if (s.feeding.length) {
+          var rate = s.feeding.reduce(function (t, b) { return t + Math.max(0, rates[b] || 0); }, 0);
+          bits.push("Taking " + usd0.format(rate) + "/mo from "
+            + s.feeding.map(function (b) { return BUCKET_LABEL[b].toLowerCase(); }).join(" and "));
+        } else if (s.startMs !== null && s.startMs > now) {
+          bits.push("Starts " + dateFmt.format(s.startMs));
+        }
+        bits.push(s.doneMs <= now ? "should be full by now" : "paid off " + dateFmt.format(s.doneMs));
+        if (stHigh && stHigh[idx].doneMs !== null && stHigh[idx].doneMs < s.doneMs - DAY_MS) {
+          bits.push("or " + dateFmt.format(stHigh[idx].doneMs) + " on a good bonus year");
+        }
+        status.textContent = bits.join(" \u00b7 ");
+      }
+      row.appendChild(status);
+      list.appendChild(row);
+    });
+
+    // month log: what actually went into each bucket
+    var months = COMMITTED_GOALS.months || [], log = $("goalLog");
     $("goalLogWrap").hidden = months.length === 0;
     log.textContent = "";
     months.forEach(function (m) {
-      var p = String(m.month).split("-"), diff = (+m.actual || 0) - (+m.projected || 0);
-      var tr = document.createElement("tr");
+      var p = String(m.month).split("-"), tr = document.createElement("tr");
       [
         [monthFmt.format(Date.UTC(+p[0], +p[1] - 1, 1)), ""],
-        [usd0.format(+m.projected || 0), "n"],
-        [usd0.format(+m.actual || 0), "n"],
-        [(diff >= 0 ? "+" : "−") + usd0.format(Math.abs(diff)), "n " + (diff >= 0 ? "up" : "down")]
+        [usd0.format(+m.surplus || 0), "n"],
+        [usd0.format(+m.savings || 0), "n"],
+        [usd0.format(+m.projected || 0), "n"]
       ].forEach(function (cell) {
         var td = document.createElement("td");
         td.textContent = cell[0];
@@ -1159,24 +1254,26 @@
       log.appendChild(tr);
     });
 
-    $("unlockGoal").hidden = found.shared;
-    lockBtn.disabled = true;
-    lockNote.hidden = false;
-    lockNote.textContent = "“" + goal.name + "” is locked in. Finish it or unlock it before starting another.";
+    $("unlockGoal").hidden = !readLocalGoals().length;
 
-    // Anything else priced now waits in line behind the goal, but only when
-    // the goal is actually eating the surplus. A goal funded purely from the
-    // savings line leaves the surplus free to buy other things.
+    // Anything priced now joins the back of the surplus line.
     var itemCost = val("itemCost"), itemName = $("itemName").value.trim();
-    var isTheGoal = itemName === goal.name && itemCost === cost;
-    var eatsSurplus = (goal.funding || "surplus") !== "savings";
-    if (itemCost > 0 && monthlySurplus > 0 && done !== null && !isTheGoal && eatsSurplus) {
-      var ready = Math.max(done, now) + (itemCost / monthlySurplus) * DAYS_PER_MONTH * DAY_MS;
+    var alreadyQueued = st.some(function (s) {
+      return s.entry.goal.name === itemName && s.cost === itemCost;
+    });
+    if (itemCost > 0 && monthlySurplus > 0 && !alreadyQueued) {
+      var lastSurplusDone = startMs;
+      st.forEach(function (s) {
+        if ((s.entry.goal.buckets || []).indexOf("surplus") >= 0 && s.doneMs !== null && s.doneMs > lastSurplusDone) {
+          lastSurplusDone = s.doneMs;
+        }
+      });
+      var begins = Math.max(lastSurplusDone, now);
+      var ready = begins + (itemCost / monthlySurplus) * DAYS_PER_MONTH * DAY_MS;
       queue.hidden = false;
-      queue.textContent = "Queued behind ";
-      var who = document.createElement("b"); who.textContent = goal.name; queue.appendChild(who);
-      queue.appendChild(document.createTextNode(" — realistically yours around "));
-      var when = document.createElement("b"); when.textContent = dateFmt.format(ready); queue.appendChild(when);
+      queue.textContent = "Behind everything in the surplus line \u2014 realistically yours around ";
+      var when = document.createElement("b"); when.textContent = dateFmt.format(ready);
+      queue.appendChild(when);
       queue.appendChild(document.createTextNode("."));
     }
   }
@@ -1225,8 +1322,8 @@
     if (sameAsBaseline()) {
       $("compareSurplus").textContent = "At your baseline";
       $("compareSurplus").className = "compare-fig";
-      $("compareNote").textContent = activeGoal()
-        ? "Change any figure to see how it moves your payoff date."
+      $("compareNote").textContent = fullQueue().length
+        ? "Change any figure to see how it moves your payoff dates."
         : "Change any figure to see what it does to your surplus.";
       $("resetBaseline").hidden = true;
       $("setBaseline").hidden = true;
@@ -1249,17 +1346,17 @@
       $("compareNote").textContent = "surplus " + usd0.format(baseline.surplus) + " \u2192 " + usd0.format(monthlySurplus) + " / mo";
     }
 
-    // With a goal locked in, the question that matters is when it's paid off.
-    var found = activeGoal();
-    if (found) {
+    // With a queue running, the question that matters is when the next
+    // thing in line lands.
+    if (fullQueue().length) {
       var wasSavings = baseline.savings !== undefined ? baseline.savings : lastSavings;
-      var then = payoffDate(found.goal, goalRate(found.goal, baseline.surplus, wasSavings)),
-          soon = payoffDate(found.goal, goalRate(found.goal, monthlySurplus, lastSavings));
+      var then = headPayoff(bucketRates(baseline.surplus, wasSavings));
+      var soon = headPayoff(bucketRates(monthlySurplus, lastSavings));
       if (then !== null && soon !== null) {
         var days = Math.round((then - soon) / DAY_MS);
-        if (days !== 0) $("compareNote").textContent += " \u00b7 goal paid off " + describeGap(days) + (days > 0 ? " sooner" : " later");
+        if (days !== 0) $("compareNote").textContent += " \u00b7 next goal lands " + describeGap(days) + (days > 0 ? " sooner" : " later");
       } else if (soon === null && then !== null) {
-        $("compareNote").textContent += " \u00b7 goal stalls with no surplus going in";
+        $("compareNote").textContent += " \u00b7 the queue stalls at these figures";
       }
     }
   }
@@ -1651,45 +1748,48 @@
     save();
   });
 
+  // Adding a goal puts it at the back of the queue for whichever buckets
+  // pay for it. Which bucket a goal draws on matters more than its order.
+  var FUNDING_BUCKETS = {
+    surplus: ["surplus"],
+    savings: ["savings"],
+    both: ["surplus", "savings"]
+  };
+
   $("lockGoal").addEventListener("click", function () {
-    if (activeGoal() || !(val("itemCost") > 0)) return;
+    if (!(val("itemCost") > 0)) return;
     var d = new Date(), pad = function (n) { return (n < 10 ? "0" : "") + n; };
-    writeLocalGoal({
+    var list = readLocalGoals();
+    list.push({
       name: $("itemName").value.trim() || "Unnamed goal",
       cost: val("itemCost"),
-      lockedOn: d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()),
-      funding: $("goalFunding").value,
-      carriedIn: 0,
-      months: []
+      buckets: FUNDING_BUCKETS[$("goalFunding").value] || ["surplus"],
+      funded: 0,
+      lockedOn: d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate())
     });
+    writeLocalGoals(list);
     recalculate();
   });
 
-  // Changing the funding source re-aims a goal that's already running.
   $("goalFunding").addEventListener("change", function () {
-    var found = activeGoal();
-    if (found && !found.shared) {
-      found.goal.funding = this.value;
-      writeLocalGoal(found.goal);
-    }
     recalculate();
     save();
   });
 
-  // Two clicks to unlock, so a stray tap can't wipe a goal in progress.
+  // Two clicks to clear, so a stray tap can't wipe a queue in progress.
   var unlockTimer = null;
   $("unlockGoal").addEventListener("click", function () {
-    var btn = this, found = activeGoal();
-    if (!found || found.shared) return;
+    var btn = this;
+    if (!readLocalGoals().length) return;
     if (!unlockTimer) {
-      btn.textContent = "Click again to unlock";
-      unlockTimer = setTimeout(function () { unlockTimer = null; btn.textContent = "Unlock"; }, 4000);
+      btn.textContent = "Click again to clear";
+      unlockTimer = setTimeout(function () { unlockTimer = null; btn.textContent = "Clear my added goals"; }, 4000);
       return;
     }
     clearTimeout(unlockTimer);
     unlockTimer = null;
-    btn.textContent = "Unlock";
-    writeLocalGoal(null);
+    btn.textContent = "Clear my added goals";
+    writeLocalGoals([]);
     recalculate();
   });
 
