@@ -411,6 +411,16 @@
     margin-left: auto; font-family: "IBM Plex Mono", monospace;
     font-variant-numeric: tabular-nums; font-size: 14px; font-weight: 600; color: var(--ink-2);
   }
+  .qmeta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .qby { font-size: 11.5px; color: var(--muted); }
+  .qbtn {
+    font-family: "IBM Plex Sans", sans-serif; font-size: 11px; color: var(--ink-2);
+    background: transparent; border: 1px solid var(--line); border-radius: 5px;
+    padding: 2px 8px; cursor: pointer; line-height: 1.5;
+  }
+  .qbtn:hover:not(:disabled) { border-color: var(--brass); background: var(--brass-tint); color: var(--ink); }
+  .qbtn:disabled { opacity: .35; cursor: not-allowed; }
+  .qbtn-del:hover:not(:disabled) { border-color: var(--alert); background: var(--alert-tint); color: var(--alert); }
   .qstatus { margin: 0; font-size: 12.5px; color: var(--muted); }
   .qstatus-done { color: var(--accent, var(--brass)); }
   .qstatus-stalled { color: var(--alert); }
@@ -531,13 +541,13 @@
             </div>
             <div class="field">
               <label for="grossIncome" id="grossLabel">Annual gross pay ($)</label>
-              <input type="number" id="grossIncome" value="75000" min="0" max="100000000" step="1000" inputmode="decimal">
+              <input type="number" id="grossIncome" value="70000" min="0" max="100000000" step="1000" inputmode="decimal">
             </div>
             <div class="field" id="bonusField" hidden>
               <label for="bonusLow">Annual bonus &mdash; expected / good year ($)</label>
               <div class="pair">
-                <input type="number" id="bonusLow" value="24900" min="0" max="10000000" step="100" inputmode="decimal" aria-label="Annual bonus, expected">
-                <input type="number" id="bonusHigh" value="30400" min="0" max="10000000" step="100" inputmode="decimal" aria-label="Annual bonus, good year">
+                <input type="number" id="bonusLow" value="0" min="0" max="10000000" step="100" inputmode="decimal" aria-label="Annual bonus, expected">
+                <input type="number" id="bonusHigh" value="0" min="0" max="10000000" step="100" inputmode="decimal" aria-label="Annual bonus, good year">
               </div>
               <span class="hint">Everything is calculated on the expected figure. The good-year figure shows alongside it as a range.</span>
             </div>
@@ -548,15 +558,15 @@
             </div>
             <div class="field" id="bizField" hidden>
               <label for="bizExpenses">Deductible business expenses ($/yr)</label>
-              <input type="number" id="bizExpenses" value="1410" min="0" max="100000000" step="500" inputmode="decimal">
+              <input type="number" id="bizExpenses" value="0" min="0" max="100000000" step="500" inputmode="decimal">
               <span class="hint">Mileage, equipment, software, home office, liability insurance, the business half of your phone.</span>
             </div>
             <div class="pair">
               <div class="field">
                 <label for="filingStatus">Filing status</label>
                 <select id="filingStatus">
-                  <option value="single">Single</option>
-                  <option value="married" selected>Married, joint</option>
+                  <option value="single" selected>Single</option>
+                  <option value="married">Married, joint</option>
                   <option value="hoh">Head of household</option>
                 </select>
               </div>
@@ -583,16 +593,16 @@
             <div class="pair">
               <div class="field">
                 <label for="weeklyHours">Paid hours / week</label>
-                <input type="number" id="weeklyHours" value="50" min="0" max="168" step="1" inputmode="decimal">
+                <input type="number" id="weeklyHours" value="40" min="0" max="168" step="1" inputmode="decimal">
               </div>
               <div class="field">
                 <label for="weeksPerYear">Weeks / year</label>
-                <input type="number" id="weeksPerYear" value="49" min="1" max="52" step="1" inputmode="decimal">
+                <input type="number" id="weeksPerYear" value="50" min="1" max="52" step="1" inputmode="decimal">
               </div>
             </div>
             <div class="field">
               <label for="unpaidHours">Unpaid hours / week</label>
-              <input type="number" id="unpaidHours" value="0" min="0" max="100" step="0.5" inputmode="decimal">
+              <input type="number" id="unpaidHours" value="2" min="0" max="100" step="0.5" inputmode="decimal">
               <span class="hint">Commute, prep, on-call, decompressing &mdash; time the job takes but doesn&rsquo;t pay for.</span>
             </div>
           </div>
@@ -644,67 +654,67 @@
                 </tr>
                 <tr class="ex-row" data-key="housing">
                   <td class="ex-name"><label for="ex-housing">Housing</label><span class="hint">Rent or mortgage, property tax, HOA, insurance</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-housing" value="2086" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-housing" value="1600" min="0" max="1000000" step="25" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-housing" aria-label="Housing frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-housing">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="utilities">
                   <td class="ex-name"><label for="ex-utilities">Utilities &amp; connectivity</label><span class="hint">Power, gas, water, trash, internet, mobile</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-utilities" value="435" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-utilities" value="300" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-utilities" aria-label="Utilities frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-utilities">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="food">
                   <td class="ex-name"><label for="ex-food">Groceries &amp; household</label><span class="hint">Food, cleaning, toiletries</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-food" value="912" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-food" value="550" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-food" aria-label="Groceries frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-food">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="transport">
                   <td class="ex-name"><label for="ex-transport">Transportation</label><span class="hint">Car payment, fuel, upkeep, registration, transit</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-transport" value="114" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-transport" value="450" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-transport" aria-label="Transportation frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-transport">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="insurance">
                   <td class="ex-name"><label for="ex-insurance">Insurance premiums</label><span class="hint">Homeowners, auto, umbrella, life. Premiums only, not claims or deductibles</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-insurance" value="2464" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-insurance" value="1800" min="0" max="1000000" step="25" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-insurance" aria-label="Insurance frequency"><option value="12">/mo</option><option value="1" selected>/yr</option></select></td>
                   <td class="ex-hours" id="hrs-insurance">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="health">
                   <td class="ex-name"><label for="ex-health">Health &amp; medical</label><span class="hint" id="healthHint">Copays, prescriptions, dental, vision</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-health" value="1006" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-health" value="450" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-health" aria-label="Health frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-health">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="debt">
                   <td class="ex-name"><label for="ex-debt">Debt payments</label><span class="hint">Student loans, card minimums, personal loans</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-debt" value="0" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-debt" value="250" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-debt" aria-label="Debt frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-debt">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="care">
                   <td class="ex-name"><label for="ex-care">Care &amp; dependents</label><span class="hint">Childcare, tuition, pets, support payments</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-care" value="20" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-care" value="0" min="0" max="1000000" step="25" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-care" aria-label="Care frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-care">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="subs">
                   <td class="ex-name"><label for="ex-subs">Subscriptions &amp; memberships</label><span class="hint">Streaming, software, gym, professional dues</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-subs" value="21" min="0" max="1000000" step="5" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-subs" value="60" min="0" max="1000000" step="5" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-subs" aria-label="Subscriptions frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-subs">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="savings">
                   <td class="ex-name"><label for="ex-savings">Savings &amp; sinking funds</label><span class="hint">Emergency fund, Roth, car replacement &mdash; money already promised</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-savings" value="400" min="0" max="1000000" step="25" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-savings" value="250" min="0" max="1000000" step="25" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-savings" aria-label="Savings frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-savings">&mdash;</td>
                 </tr>
                 <tr class="ex-row" data-key="other">
                   <td class="ex-name"><label for="ex-other">Other fixed costs</label><span class="hint">Anything recurring you can&rsquo;t skip</span></td>
-                  <td class="ex-amt"><input type="number" id="ex-other" value="480" min="0" max="1000000" step="10" inputmode="decimal"></td>
+                  <td class="ex-amt"><input type="number" id="ex-other" value="0" min="0" max="1000000" step="10" inputmode="decimal"></td>
                   <td class="ex-cad"><select id="cad-other" aria-label="Other frequency"><option value="12" selected>/mo</option><option value="1">/yr</option></select></td>
                   <td class="ex-hours" id="hrs-other">&mdash;</td>
                 </tr>
@@ -769,9 +779,9 @@
       </div>
       <div class="ask-field">
         <label for="itemCost">What does it cost? ($)</label>
-        <input type="number" id="itemCost" value="12" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0.00">
+        <input type="number" id="itemCost" value="1100" min="0" max="100000000" step="1" inputmode="decimal" placeholder="0.00">
       </div>
-      <button type="button" class="lockbtn" id="lockGoal">Lock it in</button>
+      <button type="button" class="lockbtn" id="lockGoal">Add to queue</button>
     </div>
     <p class="lock-note" id="lockNote" hidden></p>
     <div class="funding-row">
@@ -998,9 +1008,7 @@
      estimate for the time since the last confirmed month. */
   var COMMITTED_GOALS = {
     asOf: "2026-10-14",          // confirmed money runs up to this date
-    queue: [
-      { name: "LegoLand Trip", cost: 2500, buckets: ["surplus"], funded: 0 }
-    ],
+    queue: [],
     months: [],                  // what actually went into each bucket, by month
     completed: []
   };
@@ -1028,14 +1036,104 @@
     } catch (e) { /* storage blocked: the additions last for this visit only */ }
   }
 
+  /* --- posted goals ----------------------------------------------------
+     Where the page can reach a shared store it becomes the queue: anyone
+     with the link posts a goal and everyone sees it. Where it can't —
+     a static copy, a downloaded file — the same page falls back to the
+     list baked into it plus whatever this device has added. One file,
+     both behaviours, so the two copies never drift apart. */
+  var POST = { db: null, user: null, goals: null, canWrite: null, names: {} };
+
+  function postingLive() { return !!(POST.db && POST.goals); }
+
+  function goalsFromSnapshot(snap) {
+    return snap.docs.map(function (d) {
+      var v = d.data() || {};
+      return {
+        id: d.id,
+        name: String(v.name || "Unnamed goal"),
+        cost: +v.cost || 0,
+        buckets: Array.isArray(v.buckets) && v.buckets.length ? v.buckets : ["surplus"],
+        funded: +v.funded || 0,
+        order: +v.order || 0,
+        by: v.by ? String(v.by) : "",
+        at: v.at ? String(v.at) : ""
+      };
+    });
+  }
+
+  function resolveNames(goals) {
+    if (!POST.user || !POST.user.profiles) return;
+    var ids = [];
+    goals.forEach(function (g) { if (g.by && ids.indexOf(g.by) < 0) ids.push(g.by); });
+    if (!ids.length) return;
+    POST.user.profiles(ids).then(function (ps) {
+      var changed = false;
+      ids.forEach(function (id) {
+        var nm = (ps && ps[id] && ps[id].name) || "";
+        if (nm && POST.names[id] !== nm) { POST.names[id] = nm; changed = true; }
+      });
+      if (changed) recalculate();
+    }, function () { /* names are decoration; the queue works without them */ });
+  }
+
+  function startPosting() {
+    if (!window.claude || typeof window.claude.use !== "function") return;
+    window.claude.use("db").then(function (db) {
+      if (!db) return;                       // static copy: local queue stands
+      POST.db = db;
+      window.claude.use("user").then(function (u) {
+        POST.user = u;
+        if (u && u.can) {
+          Promise.resolve(u.can("data.write")).then(function (ok) {
+            POST.canWrite = ok; recalculate();
+          }, function () {});
+        }
+      }, function () {});
+
+      db.collection("goals").orderBy("order").onSnapshot(function (snap) {
+        POST.goals = goalsFromSnapshot(snap);
+        resolveNames(POST.goals);
+        recalculate();
+      }, function () {
+        POST.goals = null;                   // fall back to the baked-in list
+        recalculate();
+      });
+    }, function () { /* no shared store on this view */ });
+  }
+
   // The shared queue first, then anything added on this device.
   function fullQueue() {
-    var shared = (COMMITTED_GOALS.queue || []).map(function (g) {
-      return { goal: g, shared: true };
+    if (postingLive()) {
+      return POST.goals.map(function (g) { return { goal: g, shared: true, posted: true }; });
+    }
+    var baked = (COMMITTED_GOALS.queue || []).map(function (g) {
+      return { goal: g, shared: true, posted: false };
     });
-    return shared.concat(readLocalGoals().map(function (g) {
-      return { goal: g, shared: false };
+    return baked.concat(readLocalGoals().map(function (g) {
+      return { goal: g, shared: false, posted: false };
     }));
+  }
+
+  function postGoal(name, cost, buckets) {
+    var order = 0;
+    (POST.goals || []).forEach(function (g) { if (g.order >= order) order = g.order + 1; });
+    var body = { name: name, cost: cost, buckets: buckets, funded: 0, order: order, at: new Date().toISOString() };
+    return (POST.user && POST.user.id ? Promise.resolve(POST.user.id()) : Promise.resolve(null))
+      .then(function (id) {
+        if (id) body.by = id;
+        return POST.db.collection("goals").add(body);
+      });
+  }
+
+  // Swapping the order field is what moves a goal up or down its line.
+  function movePosted(index, delta) {
+    var list = POST.goals || [], a = list[index], b = list[index + delta];
+    if (!a || !b) return;
+    var ref = POST.db.collection("goals");
+    ref.doc(a.id).update({ order: b.order })
+      .then(function () { return ref.doc(b.id).update({ order: a.order }); })
+      .catch(function () { /* a refused write leaves the order as it was */ });
   }
 
   function dayFromISO(iso) {
@@ -1187,6 +1285,39 @@
       var cst = document.createElement("span"); cst.className = "qcost"; cst.textContent = usd0.format(s.cost);
       head.appendChild(cst);
       row.appendChild(head);
+
+      // Posted goals carry who added them, and can be reordered or removed.
+      if (s.entry.posted) {
+        var meta = document.createElement("div");
+        meta.className = "qmeta";
+        var who = g.by && POST.names[g.by] ? POST.names[g.by] : "";
+        var when = g.at ? dateFmt.format(dayFromISO(g.at.slice(0, 10))) : "";
+        var tag = document.createElement("span");
+        tag.className = "qby";
+        tag.textContent = (who ? "Added by " + who : "Added") + (when ? " on " + when : "");
+        meta.appendChild(tag);
+
+        if (POST.canWrite !== false) {
+          [["↑", -1, "Move up"], ["↓", 1, "Move down"]].forEach(function (b) {
+            var btn = document.createElement("button");
+            btn.type = "button"; btn.className = "qbtn"; btn.textContent = b[0];
+            btn.setAttribute("aria-label", b[2] + ": " + g.name);
+            btn.disabled = (b[1] < 0 && idx === 0) || (b[1] > 0 && idx === st.length - 1);
+            btn.addEventListener("click", function () { movePosted(idx, b[1]); });
+            meta.appendChild(btn);
+          });
+          var del = document.createElement("button");
+          del.type = "button"; del.className = "qbtn qbtn-del"; del.textContent = "Remove";
+          del.setAttribute("aria-label", "Remove " + g.name);
+          del.addEventListener("click", function () {
+            if (del.dataset.armed) { POST.db.collection("goals").doc(g.id).delete(); return; }
+            del.dataset.armed = "1"; del.textContent = "Remove?";
+            setTimeout(function () { delete del.dataset.armed; del.textContent = "Remove"; }, 4000);
+          });
+          meta.appendChild(del);
+        }
+        row.appendChild(meta);
+      }
 
       // bar: confirmed solid, estimate-to-today striped
       var pc = s.cost > 0 ? s.confirmed / s.cost * 100 : 0;
@@ -1758,13 +1889,31 @@
 
   $("lockGoal").addEventListener("click", function () {
     if (!(val("itemCost") > 0)) return;
+    var name = $("itemName").value.trim() || "Unnamed goal";
+    var cost = val("itemCost");
+    var buckets = FUNDING_BUCKETS[$("goalFunding").value] || ["surplus"];
+
+    // Where the shared store is reachable the goal is posted for everyone;
+    // otherwise it joins this device's own queue.
+    if (postingLive() && POST.canWrite !== false) {
+      var btn = this, label = btn.textContent;
+      btn.disabled = true; btn.textContent = "Posting…";
+      postGoal(name, cost, buckets).then(function () {
+        btn.textContent = label;
+        $("itemName").value = "";
+        recalculate();
+      }, function () {
+        btn.disabled = false; btn.textContent = label;
+        $("lockNote").hidden = false;
+        $("lockNote").textContent = "That didn't post — you may not have permission to add goals here.";
+      });
+      return;
+    }
+
     var d = new Date(), pad = function (n) { return (n < 10 ? "0" : "") + n; };
     var list = readLocalGoals();
     list.push({
-      name: $("itemName").value.trim() || "Unnamed goal",
-      cost: val("itemCost"),
-      buckets: FUNDING_BUCKETS[$("goalFunding").value] || ["surplus"],
-      funded: 0,
+      name: name, cost: cost, buckets: buckets, funded: 0,
       lockedOn: d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate())
     });
     writeLocalGoals(list);
@@ -1813,6 +1962,7 @@
 
   $("setup").addEventListener("toggle", save);
 
+  startPosting();
   readBaseline();
   restore();
   recalculate();
